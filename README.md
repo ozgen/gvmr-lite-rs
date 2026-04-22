@@ -3,9 +3,16 @@
 A lightweight Rust REST service for parsing, caching, and rendering GVM report formats.
 
 This project is a Rust rewrite of `gvmr-lite`, focusing on:
+
 - preserving external API behavior
 - improving modularity and maintainability
 - preparing for better performance and rendering backends
+
+---
+
+## Documentation
+
+- [Environment Variables](./docs/ENVIRONMENT_VARIABLES.md)
 
 ---
 
@@ -14,6 +21,7 @@ This project is a Rust rewrite of `gvmr-lite`, focusing on:
 Early development (bootstrap phase)
 
 Currently implemented:
+
 - Typed configuration (`GVMR_*`)
 - Structured logging (tracing)
 - Basic app wiring (Axum)
@@ -34,7 +42,7 @@ Currently implemented:
 
 ```bash
 cargo run
-````
+```
 
 With environment variables:
 
@@ -76,21 +84,21 @@ src/
 
 ## Design Principles
 
-* Clear separation of concerns (API, service, domain, infra)
-* Typed configuration via environment variables
-* Minimal framework leakage into core logic
-* Pluggable rendering architecture (planned)
+- Clear separation of concerns (API, service, domain, infra)
+- Typed configuration via environment variables
+- Minimal framework leakage into core logic
+- Pluggable rendering architecture (planned)
 
 ---
 
 ## Roadmap
 
-* [ ] Format cache service
-* [ ] Authentication (api_key, jwt)
-* [ ] Report format sync
-* [ ] Rendering pipeline
-* [ ] OpenAPI / Swagger
-* [ ] Integration tests
+- [ ] Format cache service
+- [ ] Authentication (api_key, jwt)
+- [ ] Report format sync
+- [ ] Rendering pipeline
+- [ ] OpenAPI / Swagger
+- [ ] Integration tests
 
 ---
 

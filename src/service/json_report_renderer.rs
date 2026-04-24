@@ -126,7 +126,7 @@ impl JsonReportRenderer {
                 generate_path = %generate_path.display(),
                 "generate script missing in temporary workdir"
             );
-        
+
             return Err(RenderError::GenerateScriptMissingInTempDir {
                 format_id: fmt.id.clone(),
             });
@@ -178,7 +178,7 @@ impl JsonReportRenderer {
                 .chars()
                 .take(4000)
                 .collect::<String>();
-        
+
             warn!(
                 format_id = %fmt.id,
                 returncode = output.returncode,
@@ -186,7 +186,7 @@ impl JsonReportRenderer {
                 tmp_files = ?list_files(tmp_path),
                 "render produced no output"
             );
-        
+
             return Err(RenderError::NoOutput {
                 format_id: fmt.id.clone(),
                 returncode: output.returncode,

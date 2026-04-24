@@ -3,8 +3,10 @@ mod app;
 mod auth;
 mod config;
 mod domain;
+mod infra;
 mod service;
 mod telemetry;
+mod xml;
 
 use std::net::SocketAddr;
 
@@ -14,7 +16,7 @@ use tracing::info;
 use crate::{
     app::{router::build_router, state::AppState},
     config::settings::Settings,
-    service::format_cache::FormatCache,
+    service::format_cache_service::FormatCache,
 };
 
 #[tokio::main]

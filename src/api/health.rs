@@ -29,7 +29,8 @@ pub async fn ready(State(state): State<AppState>) -> Json<ReadyResponse> {
 
     let feed_exists = feed_dir.exists();
     let work_exists = work_dir.exists();
-    let formats_count = state.format_cache.list().len();
+
+    let formats_count = state.format_cache.read().await.list().len();
 
     Json(ReadyResponse::from_health_state(
         feed_dir,

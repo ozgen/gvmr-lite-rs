@@ -106,10 +106,10 @@ pub fn parse_report_format_xml(path: &Path) -> Result<ParsedReportFormat, Report
                 }
 
                 match current_tag.as_str() {
-                    "name" => name = value,
-                    "extension" => extension = value,
-                    "content_type" => content_type = value,
-                    "report_type" => report_type = value,
+                    "name" => name = value.to_owned(),
+                    "extension" => extension = value.to_owned(),
+                    "content_type" => content_type = value.to_owned(),
+                    "report_type" => report_type = value.to_owned(),
                     _ => {}
                 }
             }

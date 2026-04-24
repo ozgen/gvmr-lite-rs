@@ -1,3 +1,4 @@
+use axum::extract::DefaultBodyLimit;
 use axum::{
     Router, middleware,
     routing::{get, post},
@@ -7,7 +8,7 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::{
-    api::{debug, health, report_format},
+    api::{debug, health, render, report_format},
     app::state::AppState,
     auth::middleware::require_auth,
     openapi::ApiDoc,
@@ -33,6 +34,7 @@ pub fn build_router(state: AppState) -> Router {
             "/api/v1/report-formats/sync",
             post(report_format::sync_report_formats),
         )
+        .route("/api/v1/render", post(render::render))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
     Router::new()
@@ -40,5 +42,6 @@ pub fn build_router(state: AppState) -> Router {
         .merge(protected_routes)
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .with_state(state)
+        .layer(DefaultBodyLimit::max(50 * 1024 * 1024)) // todo move this env variable
         .layer(TraceLayer::new_for_http())
 }

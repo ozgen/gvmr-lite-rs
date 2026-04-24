@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use tokio::sync::RwLock;
 
-use crate::{config::settings::Settings, service::format_cache_service::FormatCache};
+use crate::{config::settings::Settings, service::format_cache::FormatCache};
 
 #[derive(Debug, Clone)]
 pub struct AppState {

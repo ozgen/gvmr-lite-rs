@@ -17,7 +17,7 @@ use tracing::info;
 use crate::{
     app::{router::build_router, state::AppState},
     config::settings::Settings,
-    service::format_cache_service::FormatCache,
+    service::format_cache::FormatCache,
 };
 
 #[tokio::main]

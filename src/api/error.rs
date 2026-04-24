@@ -1,5 +1,3 @@
-// src/api/error.rs
-
 use axum::{
     Json,
     http::StatusCode,

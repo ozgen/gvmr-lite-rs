@@ -8,6 +8,7 @@ use utoipa::OpenApi;
         crate::api::report_format::get_report_formats,
         crate::api::report_format::get_report_format,
         crate::api::report_format::sync_report_formats,
+        crate::api::render::render,
     ),
     components(
         schemas(

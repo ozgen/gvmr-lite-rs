@@ -7,10 +7,10 @@ use crate::api::error::ApiError;
 #[allow(dead_code)]
 #[derive(Debug, Clone, Default)]
 pub struct AuthContext {
- pub subject: Option<String>,
- pub scopes: HashSet<String>,
- pub issuer: Option<String>,
- pub audience: Option<String>,
+    pub subject: Option<String>,
+    pub scopes: HashSet<String>,
+    pub issuer: Option<String>,
+    pub audience: Option<String>,
 }
 
 impl<S> FromRequestParts<S> for AuthContext
@@ -19,10 +19,7 @@ where
 {
     type Rejection = ApiError;
 
-    async fn from_request_parts(
-        parts: &mut Parts,
-        _state: &S,
-    ) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         parts
             .extensions
             .get::<AuthContext>()

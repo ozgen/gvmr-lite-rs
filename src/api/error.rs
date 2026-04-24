@@ -22,11 +22,7 @@ pub struct ApiError {
 
 #[allow(dead_code)]
 impl ApiError {
-    pub fn new(
-        status: StatusCode,
-        code: impl Into<String>,
-        message: impl Into<String>,
-    ) -> Self {
+    pub fn new(status: StatusCode, code: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
             status,
             code: code.into(),

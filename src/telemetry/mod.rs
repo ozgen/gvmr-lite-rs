@@ -1,10 +1,10 @@
-use tracing_subscriber::{fmt, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt};
 
 use crate::config::settings::Settings;
 
 pub fn init(settings: &Settings) {
-    let env_filter = EnvFilter::try_new(settings.log_level.clone())
-        .unwrap_or_else(|_| EnvFilter::new("info"));
+    let env_filter =
+        EnvFilter::try_new(settings.log_level.clone()).unwrap_or_else(|_| EnvFilter::new("info"));
 
     match settings.log_format.as_str() {
         "json" => {

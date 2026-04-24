@@ -13,7 +13,8 @@ use tracing::info;
 
 use crate::{
     app::{router::build_router, state::AppState},
-    config::settings::Settings, service::format_cache::FormatCache,
+    config::settings::Settings,
+    service::format_cache::FormatCache,
 };
 
 #[tokio::main]
@@ -58,7 +59,5 @@ async fn main() {
     info!(bind_address = %addr, "tcp listener bound");
     info!("starting HTTP server");
 
-    axum::serve(listener, app)
-        .await
-        .expect("server error");
+    axum::serve(listener, app).await.expect("server error");
 }

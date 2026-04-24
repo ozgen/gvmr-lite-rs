@@ -1,8 +1,8 @@
-use axum::{middleware, routing::get, Router};
+use axum::{Router, middleware, routing::get};
 use tower_http::trace::TraceLayer;
 
 use crate::{
-    api::health,
+    api::{debug, health},
     app::state::AppState,
     auth::middleware::require_auth,
 };
@@ -14,10 +14,8 @@ pub fn build_router(state: AppState) -> Router {
 
     let protected_routes = Router::new()
         .route("/api/v1/ping", get(|| async { "ok" }))
-        .route_layer(middleware::from_fn_with_state(
-            state.clone(),
-            require_auth,
-        ));
+        .route("/api/v1/sync-ping", get(debug::sync_ping))
+        .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
     Router::new()
         .merge(public_routes)

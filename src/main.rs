@@ -1,5 +1,6 @@
 mod api;
 mod app;
+mod auth;
 mod config;
 mod telemetry;
 
@@ -20,7 +21,7 @@ async fn main() {
 
     info!(
         port = settings.port,
-        auth_mode = %settings.auth_mode,
+        auth_mode = ?settings.auth_mode,
         report_formats_feed_dir = %settings.report_formats_feed_dir.display(),
         work_dir = %settings.work_dir.display(),
         rebuild_on_start = settings.rebuild_on_start,
@@ -30,7 +31,7 @@ async fn main() {
     );
 
     let app_state = AppState::new(settings.clone());
-    let app = build_router().with_state(app_state);
+    let app = build_router(app_state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], settings.port));
     let listener = TcpListener::bind(addr)

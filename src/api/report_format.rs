@@ -14,6 +14,16 @@ use crate::{
     auth::{context::AuthContext, scope::require_scope},
 };
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/report-formats",
+    tag = "report-formats",
+    responses(
+        (status = 200, description = "List report formats", body = ReportFormatListResponse),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden")
+    )
+)]
 pub async fn get_report_formats(
     State(state): State<AppState>,
     ctx: AuthContext,
@@ -43,6 +53,20 @@ pub async fn get_report_formats(
     }))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/report-formats/{format_id}",
+    tag = "report-formats",
+    params(
+        ("format_id" = String, Path, description = "Report format UUID")
+    ),
+    responses(
+        (status = 200, description = "Report format", body = ReportFormatResponse),
+        (status = 404, description = "Report format not found"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden")
+    )
+)]
 pub async fn get_report_format(
     State(state): State<AppState>,
     ctx: AuthContext,
@@ -66,6 +90,17 @@ pub async fn get_report_format(
     Ok(Json(ReportFormatResponse::from(fmt)))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/report-formats/sync",
+    tag = "report-formats",
+    responses(
+        (status = 200, description = "Sync report formats", body = ReportFormatSyncResponse),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden"),
+        (status = 500, description = "Sync failed")
+    )
+)]
 pub async fn sync_report_formats(
     State(state): State<AppState>,
     ctx: AuthContext,

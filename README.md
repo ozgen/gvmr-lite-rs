@@ -60,12 +60,10 @@ cargo run
 
 ## API
 
-### Health endpoints
+When the service is running, interactive API documentation is available:
 
-```bash
-curl http://localhost:8084/health/live
-curl http://localhost:8084/health/ready
-```
+- Swagger UI: http://localhost:8084/docs
+- OpenAPI spec: http://localhost:8084/api-docs/openapi.json
 
 ---
 

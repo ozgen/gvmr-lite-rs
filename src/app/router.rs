@@ -3,11 +3,14 @@ use axum::{
     routing::{get, post},
 };
 use tower_http::trace::TraceLayer;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 use crate::{
     api::{debug, health, report_format},
     app::state::AppState,
     auth::middleware::require_auth,
+    openapi::ApiDoc,
 };
 
 pub fn build_router(state: AppState) -> Router {
@@ -35,6 +38,7 @@ pub fn build_router(state: AppState) -> Router {
     Router::new()
         .merge(public_routes)
         .merge(protected_routes)
+        .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .with_state(state)
         .layer(TraceLayer::new_for_http())
 }

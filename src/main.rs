@@ -4,6 +4,7 @@ mod auth;
 mod config;
 mod domain;
 mod infra;
+mod openapi;
 mod service;
 mod telemetry;
 mod xml;

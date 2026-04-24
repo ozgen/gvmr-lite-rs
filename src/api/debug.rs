@@ -10,7 +10,11 @@ pub async fn sync_ping(
     State(state): State<AppState>,
     ctx: AuthContext,
 ) -> Result<impl IntoResponse, ApiError> {
-    require_scope(&ctx, &state.settings.required_scope_sync)?;
+    require_scope(
+        &ctx,
+        &state.settings.auth_mode,
+        &state.settings.required_scope_sync,
+    )?;
 
     Ok("sync ok")
 }

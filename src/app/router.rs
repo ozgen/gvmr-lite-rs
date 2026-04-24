@@ -1,8 +1,11 @@
-use axum::{Router, middleware, routing::get};
+use axum::{
+    Router, middleware,
+    routing::{get, post},
+};
 use tower_http::trace::TraceLayer;
 
 use crate::{
-    api::{debug, health},
+    api::{debug, health, report_format},
     app::state::AppState,
     auth::middleware::require_auth,
 };
@@ -15,6 +18,18 @@ pub fn build_router(state: AppState) -> Router {
     let protected_routes = Router::new()
         .route("/api/v1/ping", get(|| async { "ok" }))
         .route("/api/v1/sync-ping", get(debug::sync_ping))
+        .route(
+            "/api/v1/report-formats",
+            get(report_format::get_report_formats),
+        )
+        .route(
+            "/api/v1/report-formats/{format_id}",
+            get(report_format::get_report_format),
+        )
+        .route(
+            "/api/v1/report-formats/sync",
+            post(report_format::sync_report_formats),
+        )
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
     Router::new()

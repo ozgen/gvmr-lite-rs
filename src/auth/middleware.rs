@@ -8,23 +8,30 @@ use axum::{
 use crate::{
     api::error::ApiError,
     app::state::AppState,
-    auth::{bearer::extract_bearer, jwt::validate_jwt},
+    auth::{bearer::extract_bearer, context::AuthContext, jwt::validate_jwt},
     config::settings::AuthMode,
 };
 
 pub async fn require_auth(
     State(state): State<AppState>,
-    req: Request<axum::body::Body>,
+    mut req: Request<axum::body::Body>,
     next: Next,
 ) -> Response {
     match state.settings.auth_mode {
-        AuthMode::None => next.run(req).await,
+        AuthMode::None => {
+            req.extensions_mut().insert(AuthContext::default());
+            next.run(req).await
+        }
         AuthMode::ApiKey => require_api_key(state, req, next).await,
         AuthMode::Jwt => require_jwt(state, req, next).await,
     }
 }
 
-async fn require_api_key(state: AppState, req: Request<axum::body::Body>, next: Next) -> Response {
+async fn require_api_key(
+    state: AppState,
+    mut req: Request<axum::body::Body>,
+    next: Next,
+) -> Response {
     let Some(expected) = state.settings.api_key.as_deref() else {
         return ApiError::internal("API key auth enabled but GVMR_API_KEY is not set")
             .into_response();
@@ -40,6 +47,11 @@ async fn require_api_key(state: AppState, req: Request<axum::body::Body>, next: 
     if provided != Some(expected) {
         return ApiError::unauthorized("Invalid API key").into_response();
     }
+
+    req.extensions_mut().insert(AuthContext {
+        subject: Some("api_key".to_string()),
+        ..Default::default()
+    });
 
     next.run(req).await
 }

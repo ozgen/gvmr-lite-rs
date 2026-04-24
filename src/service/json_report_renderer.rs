@@ -93,6 +93,7 @@ impl JsonReportRenderer {
         }
 
         let injected = inject_graph_gen_fields(report_json).map_err(RenderError::BuildXml)?;
+        maybe_write_debug_json("injected-report.json", &injected);
 
         let report_payload = injected.get("report").unwrap_or(&injected);
         let report_xml = build_report_xml(&serde_json::json!({ "report": report_payload }))
@@ -465,4 +466,17 @@ fn current_unix_timestamp() -> u64 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|duration| duration.as_secs())
         .unwrap_or(0)
+}
+
+fn maybe_write_debug_json(name: &str, value: &serde_json::Value) {
+    let Ok(debug_root) = std::env::var("GVMR_RENDER_DEBUG_DIR") else {
+        return;
+    };
+
+    let path = std::path::PathBuf::from(debug_root).join(name);
+
+    let _ = std::fs::write(
+        path,
+        serde_json::to_string_pretty(value).unwrap_or_default(),
+    );
 }

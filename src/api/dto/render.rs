@@ -262,16 +262,27 @@ pub struct HostResultCount {
     pub extra: Map<String, Value>,
 }
 
-#[derive(Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Deserialize, Serialize, ToSchema, Default)]
 pub struct HostEntry {
-    pub ip: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ip: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub asset: Option<AssetRef>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub start: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub end: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub port_count: Option<PageCount>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub result_count: Option<HostResultCount>,
 
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub detail: Vec<HostDetail>,
 
     #[serde(flatten)]

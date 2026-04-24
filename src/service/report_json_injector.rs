@@ -1,10 +1,10 @@
-use serde_json::{Map, Value};
+use serde_json::Value;
 
 pub fn inject_graph_gen_fields(report_json: &Value) -> Result<Value, String> {
     let mut data = report_json.clone();
 
     let Some(root) = data.as_object_mut() else {
-        return Err("Expected object-like report_json".to_string());
+        return Err("Expected dict-like report_json".to_string());
     };
 
     let report = match root.get_mut("report") {
@@ -16,7 +16,14 @@ pub fn inject_graph_gen_fields(report_json: &Value) -> Result<Value, String> {
         return Ok(data);
     };
 
-    normalize_result_list(results);
+    let Some(result_value) = results.get_mut("result") else {
+        return Ok(data);
+    };
+
+    if result_value.is_object() {
+        let original = result_value.take();
+        *result_value = Value::Array(vec![original]);
+    }
 
     let Some(Value::Array(result_list)) = results.get_mut("result") else {
         return Ok(data);
@@ -27,75 +34,59 @@ pub fn inject_graph_gen_fields(report_json: &Value) -> Result<Value, String> {
             continue;
         };
 
-        inject_nvt_fields(result_obj);
-        normalize_host(result_obj);
+        if let Some(nvt) = result_obj.get_mut("nvt").and_then(Value::as_object_mut) {
+            if !nvt.contains_key("@oid")
+                && let Some(oid_value) = nvt.get("oid").cloned()
+                && !is_falsey(&oid_value)
+            {
+                nvt.insert("@oid".to_string(), oid_value);
+                nvt.remove("oid");
+            }
+
+            let ref_values = nvt.get("refs").map(collect_ref_values).unwrap_or_default();
+
+            let cves = extract_cves_from_values(&ref_values);
+            let existing_cve = nvt.get("cve").cloned();
+
+            let cve_missing_or_empty = existing_cve
+                .as_ref()
+                .map(|v| value_to_string(v).trim().is_empty())
+                .unwrap_or(true);
+
+            if cve_missing_or_empty && !cves.is_empty() {
+                nvt.insert("cve".to_string(), Value::String(cves.join(", ")));
+            }
+
+            if let Some(Value::Array(items)) = existing_cve {
+                let joined = items
+                    .iter()
+                    .map(value_to_string)
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                nvt.insert("cve".to_string(), Value::String(joined));
+            }
+        }
+
+        match result_obj.get_mut("host") {
+            None | Some(Value::Null) => {
+                result_obj.insert("host".to_string(), Value::String(String::new()));
+            }
+            Some(Value::Object(host)) if !host.contains_key("#text") => {
+                host.insert("#text".to_string(), Value::String(String::new()));
+            }
+            _ => {}
+        }
     }
 
     Ok(data)
 }
 
-fn normalize_result_list(results: &mut Map<String, Value>) {
-    let Some(result) = results.get_mut("result") else {
-        return;
-    };
-
-    if result.is_object() {
-        let original = result.take();
-        *result = Value::Array(vec![original]);
-    }
-}
-
-fn inject_nvt_fields(result: &mut Map<String, Value>) {
-    let Some(nvt) = result.get_mut("nvt").and_then(Value::as_object_mut) else {
-        return;
-    };
-
-    if !nvt.contains_key("@oid")
-        && let Some(oid) = nvt.remove("oid")
-        && !oid.is_null()
-    {
-        nvt.insert("@oid".to_string(), oid);
-    }
-
-    let ref_values = nvt.get("refs").map(collect_ref_values).unwrap_or_default();
-
-    let cves = extract_cves_from_values(&ref_values);
-
-    let existing_cve = nvt.get("cve");
-
-    let cve_missing_or_empty = match existing_cve {
-        None | Some(Value::Null) => true,
-        Some(Value::String(s)) => s.trim().is_empty(),
-        _ => false,
-    };
-
-    if cve_missing_or_empty && !cves.is_empty() {
-        nvt.insert("cve".to_string(), Value::String(cves.join(", ")));
-    } else if let Some(Value::Array(items)) = existing_cve {
-        let joined = items
-            .iter()
-            .filter_map(value_to_non_empty_string)
-            .collect::<Vec<_>>()
-            .join(", ");
-
-        nvt.insert("cve".to_string(), Value::String(joined));
-    }
-}
-
-fn normalize_host(result: &mut Map<String, Value>) {
-    match result.get_mut("host") {
-        None | Some(Value::Null) => {
-            result.insert("host".to_string(), Value::String(String::new()));
-        }
-        Some(Value::Object(host)) if !host.contains_key("#text") => {
-            host.insert("#text".to_string(), Value::String(String::new()));
-        }
-        _ => {}
-    }
-}
-
 fn collect_ref_values(refs: &Value) -> Vec<Value> {
     match refs {
+        Value::Null => Vec::new(),
         Value::Object(map) => {
             let mut out = Vec::new();
 
@@ -103,16 +94,14 @@ fn collect_ref_values(refs: &Value) -> Vec<Value> {
                 out.extend(as_list(xref));
             }
 
-            if let Some(ref_value) = map.get("ref") {
-                for item in as_list(ref_value) {
-                    match item {
-                        Value::Object(ref_obj) => {
-                            if let Some(id) = ref_obj.get("@id") {
-                                out.push(id.clone());
-                            }
+            for item in map.get("ref").map(as_list).unwrap_or_default() {
+                match item {
+                    Value::Object(ref_obj) => {
+                        if let Some(id) = ref_obj.get("@id") {
+                            out.push(id.clone());
                         }
-                        other => out.push(other),
                     }
+                    other => out.push(other),
                 }
             }
 
@@ -147,42 +136,28 @@ fn extract_cves_from_values(values: &[Value]) -> Vec<String> {
 }
 
 fn extract_cves_from_text(text: &str) -> Vec<String> {
-    let mut out = Vec::new();
-
-    for word in text.split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '-') {
-        if is_cve(word) {
-            out.push(word.to_ascii_uppercase());
-        }
-    }
-
-    out
+    text.split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '-')
+        .filter(|word| is_cve(word))
+        .map(|word| word.to_ascii_uppercase())
+        .collect()
 }
 
 fn is_cve(value: &str) -> bool {
-    let parts: Vec<&str> = value.split('-').collect();
+    let parts = value.split('-').collect::<Vec<_>>();
 
-    if parts.len() != 3 {
-        return false;
-    }
-
-    if !parts[0].eq_ignore_ascii_case("CVE") {
-        return false;
-    }
-
-    parts[1].len() == 4
+    parts.len() == 3
+        && parts[0].eq_ignore_ascii_case("CVE")
+        && parts[1].len() == 4
         && parts[1].chars().all(|ch| ch.is_ascii_digit())
         && parts[2].len() >= 4
         && parts[2].chars().all(|ch| ch.is_ascii_digit())
 }
 
-fn value_to_non_empty_string(value: &Value) -> Option<String> {
-    let text = value_to_string(value);
-    let trimmed = text.trim();
-
-    if trimmed.is_empty() {
-        None
-    } else {
-        Some(trimmed.to_string())
+fn is_falsey(value: &Value) -> bool {
+    match value {
+        Value::Null => true,
+        Value::String(s) => s.is_empty(),
+        _ => false,
     }
 }
 

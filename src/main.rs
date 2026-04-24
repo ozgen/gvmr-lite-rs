@@ -2,6 +2,8 @@ mod api;
 mod app;
 mod auth;
 mod config;
+mod domain;
+mod service;
 mod telemetry;
 
 use std::net::SocketAddr;
@@ -11,7 +13,7 @@ use tracing::info;
 
 use crate::{
     app::{router::build_router, state::AppState},
-    config::settings::Settings,
+    config::settings::Settings, service::format_cache::FormatCache,
 };
 
 #[tokio::main]
@@ -30,7 +32,22 @@ async fn main() {
         "settings loaded"
     );
 
-    let app_state = AppState::new(settings.clone());
+    let mut format_cache = FormatCache::new(
+        settings.report_formats_feed_dir.clone(),
+        settings.report_formats_work_dir(),
+        settings.rebuild_on_start,
+    );
+
+    format_cache
+        .initialize()
+        .expect("failed to initialize format cache");
+
+    info!(
+        formats_count = format_cache.list().len(),
+        "format cache initialized"
+    );
+
+    let app_state = AppState::new(settings.clone(), format_cache);
     let app = build_router(app_state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], settings.port));

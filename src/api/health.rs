@@ -1,4 +1,4 @@
-use axum::{extract::State, Json};
+use axum::{Json, extract::State};
 
 use crate::{
     api::dto::health::{LiveResponse, ReadyResponse},
@@ -29,7 +29,7 @@ pub async fn ready(State(state): State<AppState>) -> Json<ReadyResponse> {
 
     let feed_exists = feed_dir.exists();
     let work_exists = work_dir.exists();
-    let formats_count = 0; //todo: update when implement format_cache
+    let formats_count = state.format_cache.list().len();
 
     Json(ReadyResponse::from_health_state(
         feed_dir,

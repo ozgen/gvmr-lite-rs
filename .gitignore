@@ -13,3 +13,4 @@ work/
 
 *.log
 
+tarpaulin-report.html

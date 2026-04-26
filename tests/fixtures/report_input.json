@@ -1,0 +1,1362 @@
+{
+  "@attrs": {
+    "id": "07089477-304c-4e4e-94f1-4c3408fb867c"
+  },
+  "apps": {
+    "count": 0
+  },
+  "closed_cves": {
+    "count": 0
+  },
+  "errors": null,
+  "filters": {
+    "@attrs": null,
+    "filter": [],
+    "keywords": {
+      "keyword": [
+        {
+          "column": "min_qod",
+          "relation": "=",
+          "value": 70
+        }
+      ]
+    },
+    "phrase": null,
+    "term": ""
+  },
+  "gmp": null,
+  "host": [
+    {
+      "detail": [
+        {
+          "extra": null,
+          "name": "MAC",
+          "source": {
+            "description": "Nmap MAC Scan",
+            "name": "1.3.6.1.4.1.25623.1.0.103585",
+            "type": "nvt"
+          },
+          "value": "A8:42:E3:0D:12:F8"
+        },
+        {
+          "extra": null,
+          "name": "OS",
+          "source": {
+            "description": "Operating System (OS) Detection (ICMP)",
+            "name": "1.3.6.1.4.1.25623.1.0.102002",
+            "type": "nvt"
+          },
+          "value": "Cisco IOS"
+        },
+        {
+          "extra": null,
+          "name": "OS",
+          "source": {
+            "description": "Operating System (OS) Detection (ICMP)",
+            "name": "1.3.6.1.4.1.25623.1.0.102002",
+            "type": "nvt"
+          },
+          "value": "HP UX"
+        },
+        {
+          "extra": null,
+          "name": "OS",
+          "source": {
+            "description": "Operating System (OS) Detection (ICMP)",
+            "name": "1.3.6.1.4.1.25623.1.0.102002",
+            "type": "nvt"
+          },
+          "value": "NetBSD"
+        },
+        {
+          "extra": null,
+          "name": "OS",
+          "source": {
+            "description": "Operating System (OS) Detection (ICMP)",
+            "name": "1.3.6.1.4.1.25623.1.0.102002",
+            "type": "nvt"
+          },
+          "value": "OpenBSD"
+        },
+        {
+          "extra": null,
+          "name": "OS",
+          "source": {
+            "description": "Operating System (OS) Detection (ICMP)",
+            "name": "1.3.6.1.4.1.25623.1.0.102002",
+            "type": "nvt"
+          },
+          "value": "cpe:/o:cisco:ios"
+        },
+        {
+          "extra": null,
+          "name": "OS",
+          "source": {
+            "description": "Operating System (OS) Detection (ICMP)",
+            "name": "1.3.6.1.4.1.25623.1.0.102002",
+            "type": "nvt"
+          },
+          "value": "cpe:/o:hp:hp-ux"
+        },
+        {
+          "extra": null,
+          "name": "OS",
+          "source": {
+            "description": "Operating System (OS) Detection (ICMP)",
+            "name": "1.3.6.1.4.1.25623.1.0.102002",
+            "type": "nvt"
+          },
+          "value": "cpe:/o:netbsd:netbsd"
+        },
+        {
+          "extra": null,
+          "name": "OS",
+          "source": {
+            "description": "Operating System (OS) Detection (ICMP)",
+            "name": "1.3.6.1.4.1.25623.1.0.102002",
+            "type": "nvt"
+          },
+          "value": "cpe:/o:openbsd:openbsd"
+        },
+        {
+          "extra": null,
+          "name": "OS-Detection",
+          "source": {
+            "description": null,
+            "name": "1.3.6.1.4.1.25623.1.0.105937",
+            "type": "nvt"
+          },
+          "value": "cpe:/o:openbsd:openbsd"
+        },
+        {
+          "extra": null,
+          "name": "best_os_cpe",
+          "source": {
+            "description": "Operating System (OS) Detection (ICMP)",
+            "name": "1.3.6.1.4.1.25623.1.0.102002;",
+            "type": "nvt"
+          },
+          "value": "cpe:/o:openbsd:openbsd"
+        },
+        {
+          "extra": null,
+          "name": "best_os_txt",
+          "source": {
+            "description": "Operating System (OS) Detection (ICMP)",
+            "name": "1.3.6.1.4.1.25623.1.0.102002;",
+            "type": "nvt"
+          },
+          "value": "OpenBSD"
+        },
+        {
+          "extra": null,
+          "name": "cpe:/o:openbsd:openbsd",
+          "source": {
+            "description": null,
+            "name": "1.3.6.1.4.1.25623.1.0.105937",
+            "type": "nvt"
+          },
+          "value": "general/tcp"
+        },
+        {
+          "extra": null,
+          "name": "hostname",
+          "source": {
+            "description": "Host Details",
+            "name": "1.3.6.1.4.1.25623.1.0.103997",
+            "type": "nvt"
+          },
+          "value": "levoit-purifier.fritz.box"
+        },
+        {
+          "extra": null,
+          "name": "hostname_determination",
+          "source": {
+            "description": "Hostname Determination Reporting",
+            "name": "1.3.6.1.4.1.25623.1.0.108449",
+            "type": "nvt"
+          },
+          "value": "192.168.178.87,levoit-purifier.fritz.box,Reverse-DNS"
+        },
+        {
+          "extra": null,
+          "name": "scanned_with_feedname",
+          "source": {
+            "description": "Host Scan End",
+            "name": "1.3.6.1.4.1.25623.1.0.103739",
+            "type": "nvt"
+          },
+          "value": "GSF"
+        },
+        {
+          "extra": null,
+          "name": "scanned_with_feedtype",
+          "source": {
+            "description": "Host Scan End",
+            "name": "1.3.6.1.4.1.25623.1.0.103739",
+            "type": "nvt"
+          },
+          "value": "Greenbone Enterprise Feed"
+        },
+        {
+          "extra": null,
+          "name": "scanned_with_feedvendor",
+          "source": {
+            "description": "Host Scan End",
+            "name": "1.3.6.1.4.1.25623.1.0.103739",
+            "type": "nvt"
+          },
+          "value": "Greenbone AG"
+        },
+        {
+          "extra": null,
+          "name": "scanned_with_feedversion",
+          "source": {
+            "description": "Host Scan End",
+            "name": "1.3.6.1.4.1.25623.1.0.103739",
+            "type": "nvt"
+          },
+          "value": "202604171712"
+        },
+        {
+          "extra": null,
+          "name": "scanned_with_scanner",
+          "source": {
+            "description": "Host Scan End",
+            "name": "1.3.6.1.4.1.25623.1.0.103739",
+            "type": "nvt"
+          },
+          "value": "23.41.7"
+        },
+        {
+          "extra": null,
+          "name": "traceroute",
+          "source": {
+            "description": "Traceroute",
+            "name": "1.3.6.1.4.1.25623.1.0.51662",
+            "type": "nvt"
+          },
+          "value": "192.168.178.24,192.168.178.87"
+        }
+      ],
+      "end": "2026-04-21T20:59:48Z",
+      "ip": "192.168.178.87",
+      "port_count": {
+        "page": 0
+      },
+      "result_count": {
+        "critical": {
+          "page": 0
+        },
+        "false_positive": {
+          "page": 0
+        },
+        "high": {
+          "page": 0
+        },
+        "hole": {
+          "page": 0
+        },
+        "info": {
+          "page": 21
+        },
+        "log": {
+          "page": 0
+        },
+        "low": {
+          "page": 0
+        },
+        "medium": {
+          "page": 0
+        },
+        "page": 21,
+        "warning": {
+          "page": 0
+        }
+      },
+      "start": "2026-04-21T20:56:00Z"
+    }
+  ],
+  "hosts": {
+    "count": 1
+  },
+  "os": {
+    "count": 0
+  },
+  "ports": {
+    "@attrs": {
+      "max": 0,
+      "start": 1
+    },
+    "count": null,
+    "port": []
+  },
+  "report_format": null,
+  "result_count": {
+    "critical": {
+      "filtered": 0,
+      "full": 0
+    },
+    "false_positive": {
+      "filtered": 0,
+      "full": 0
+    },
+    "filtered": 21,
+    "full": 21,
+    "high": {
+      "filtered": 0,
+      "full": 0
+    },
+    "hole": {
+      "filtered": 0,
+      "full": 0
+    },
+    "info": {
+      "filtered": 21,
+      "full": 21
+    },
+    "log": {
+      "filtered": 0,
+      "full": 0
+    },
+    "low": {
+      "filtered": 0,
+      "full": 0
+    },
+    "medium": {
+      "filtered": 0,
+      "full": 0
+    },
+    "total": null,
+    "warning": {
+      "filtered": 0,
+      "full": 0
+    }
+  },
+  "results": {
+    "@attrs": {
+      "max": 21,
+      "start": 1
+    },
+    "result": [
+      {
+        "@attrs": {
+          "id": "1.3.6.1.4.1.25623.1.0.103997-192_168_178_87-1"
+        },
+        "comment": null,
+        "compliance": null,
+        "creation_time": null,
+        "cve": null,
+        "delta": null,
+        "description": "MAC: A8:42:E3:0D:12:F8\nDetected by: Nmap MAC Scan (nvt)\nOID: 1.3.6.1.4.1.25623.1.0.103585",
+        "detection": null,
+        "host": {
+          "#text": "192.168.178.87",
+          "asset": null,
+          "hostname": "levoit-purifier.fritz.box"
+        },
+        "modification_time": null,
+        "name": "Host Details",
+        "notes": null,
+        "nvt": {
+          "@attrs": {
+            "oid": "1.3.6.1.4.1.25623.1.0.103997"
+          },
+          "cve": null,
+          "cvss_base": null,
+          "epss": null,
+          "family": "Service detection",
+          "name": "Host Details",
+          "refs": null,
+          "severities": null,
+          "solution": null,
+          "tags": "summary=This scripts aggregates the OS detection information gathered by   several VTs and store it in a structured and unified way.|qod=80|qod_type=remote_banner",
+          "type": null
+        },
+        "original_severity": 0,
+        "original_threat": "Info",
+        "overrides": null,
+        "owner": null,
+        "port": null,
+        "qod": {
+          "type": "remote_banner",
+          "value": 80
+        },
+        "scan_nvt_version": null,
+        "severity": 0,
+        "threat": "Info"
+      },
+      {
+        "@attrs": {
+          "id": "1.3.6.1.4.1.25623.1.0.103997-192_168_178_87-2"
+        },
+        "comment": null,
+        "compliance": null,
+        "creation_time": null,
+        "cve": null,
+        "delta": null,
+        "description": "OS: Cisco IOS\nDetected by: Operating System (OS) Detection (ICMP) (nvt)\nOID: 1.3.6.1.4.1.25623.1.0.102002",
+        "detection": null,
+        "host": {
+          "#text": "192.168.178.87",
+          "asset": null,
+          "hostname": "levoit-purifier.fritz.box"
+        },
+        "modification_time": null,
+        "name": "Host Details",
+        "notes": null,
+        "nvt": {
+          "@attrs": {
+            "oid": "1.3.6.1.4.1.25623.1.0.103997"
+          },
+          "cve": null,
+          "cvss_base": null,
+          "epss": null,
+          "family": "Service detection",
+          "name": "Host Details",
+          "refs": null,
+          "severities": null,
+          "solution": null,
+          "tags": "summary=This scripts aggregates the OS detection information gathered by   several VTs and store it in a structured and unified way.|qod=80|qod_type=remote_banner",
+          "type": null
+        },
+        "original_severity": 0,
+        "original_threat": "Info",
+        "overrides": null,
+        "owner": null,
+        "port": null,
+        "qod": {
+          "type": "remote_banner",
+          "value": 80
+        },
+        "scan_nvt_version": null,
+        "severity": 0,
+        "threat": "Info"
+      },
+      {
+        "@attrs": {
+          "id": "1.3.6.1.4.1.25623.1.0.103997-192_168_178_87-3"
+        },
+        "comment": null,
+        "compliance": null,
+        "creation_time": null,
+        "cve": null,
+        "delta": null,
+        "description": "OS: cpe:/o:cisco:ios\nDetected by: Operating System (OS) Detection (ICMP) (nvt)\nOID: 1.3.6.1.4.1.25623.1.0.102002",
+        "detection": null,
+        "host": {
+          "#text": "192.168.178.87",
+          "asset": null,
+          "hostname": "levoit-purifier.fritz.box"
+        },
+        "modification_time": null,
+        "name": "Host Details",
+        "notes": null,
+        "nvt": {
+          "@attrs": {
+            "oid": "1.3.6.1.4.1.25623.1.0.103997"
+          },
+          "cve": null,
+          "cvss_base": null,
+          "epss": null,
+          "family": "Service detection",
+          "name": "Host Details",
+          "refs": null,
+          "severities": null,
+          "solution": null,
+          "tags": "summary=This scripts aggregates the OS detection information gathered by   several VTs and store it in a structured and unified way.|qod=80|qod_type=remote_banner",
+          "type": null
+        },
+        "original_severity": 0,
+        "original_threat": "Info",
+        "overrides": null,
+        "owner": null,
+        "port": null,
+        "qod": {
+          "type": "remote_banner",
+          "value": 80
+        },
+        "scan_nvt_version": null,
+        "severity": 0,
+        "threat": "Info"
+      },
+      {
+        "@attrs": {
+          "id": "1.3.6.1.4.1.25623.1.0.103997-192_168_178_87-4"
+        },
+        "comment": null,
+        "compliance": null,
+        "creation_time": null,
+        "cve": null,
+        "delta": null,
+        "description": "OS: OpenBSD\nDetected by: Operating System (OS) Detection (ICMP) (nvt)\nOID: 1.3.6.1.4.1.25623.1.0.102002",
+        "detection": null,
+        "host": {
+          "#text": "192.168.178.87",
+          "asset": null,
+          "hostname": "levoit-purifier.fritz.box"
+        },
+        "modification_time": null,
+        "name": "Host Details",
+        "notes": null,
+        "nvt": {
+          "@attrs": {
+            "oid": "1.3.6.1.4.1.25623.1.0.103997"
+          },
+          "cve": null,
+          "cvss_base": null,
+          "epss": null,
+          "family": "Service detection",
+          "name": "Host Details",
+          "refs": null,
+          "severities": null,
+          "solution": null,
+          "tags": "summary=This scripts aggregates the OS detection information gathered by   several VTs and store it in a structured and unified way.|qod=80|qod_type=remote_banner",
+          "type": null
+        },
+        "original_severity": 0,
+        "original_threat": "Info",
+        "overrides": null,
+        "owner": null,
+        "port": null,
+        "qod": {
+          "type": "remote_banner",
+          "value": 80
+        },
+        "scan_nvt_version": null,
+        "severity": 0,
+        "threat": "Info"
+      },
+      {
+        "@attrs": {
+          "id": "1.3.6.1.4.1.25623.1.0.103997-192_168_178_87-5"
+        },
+        "comment": null,
+        "compliance": null,
+        "creation_time": null,
+        "cve": null,
+        "delta": null,
+        "description": "OS: cpe:/o:openbsd:openbsd\nDetected by: Operating System (OS) Detection (ICMP) (nvt)\nOID: 1.3.6.1.4.1.25623.1.0.102002",
+        "detection": null,
+        "host": {
+          "#text": "192.168.178.87",
+          "asset": null,
+          "hostname": "levoit-purifier.fritz.box"
+        },
+        "modification_time": null,
+        "name": "Host Details",
+        "notes": null,
+        "nvt": {
+          "@attrs": {
+            "oid": "1.3.6.1.4.1.25623.1.0.103997"
+          },
+          "cve": null,
+          "cvss_base": null,
+          "epss": null,
+          "family": "Service detection",
+          "name": "Host Details",
+          "refs": null,
+          "severities": null,
+          "solution": null,
+          "tags": "summary=This scripts aggregates the OS detection information gathered by   several VTs and store it in a structured and unified way.|qod=80|qod_type=remote_banner",
+          "type": null
+        },
+        "original_severity": 0,
+        "original_threat": "Info",
+        "overrides": null,
+        "owner": null,
+        "port": null,
+        "qod": {
+          "type": "remote_banner",
+          "value": 80
+        },
+        "scan_nvt_version": null,
+        "severity": 0,
+        "threat": "Info"
+      },
+      {
+        "@attrs": {
+          "id": "1.3.6.1.4.1.25623.1.0.103997-192_168_178_87-6"
+        },
+        "comment": null,
+        "compliance": null,
+        "creation_time": null,
+        "cve": null,
+        "delta": null,
+        "description": "OS: NetBSD\nDetected by: Operating System (OS) Detection (ICMP) (nvt)\nOID: 1.3.6.1.4.1.25623.1.0.102002",
+        "detection": null,
+        "host": {
+          "#text": "192.168.178.87",
+          "asset": null,
+          "hostname": "levoit-purifier.fritz.box"
+        },
+        "modification_time": null,
+        "name": "Host Details",
+        "notes": null,
+        "nvt": {
+          "@attrs": {
+            "oid": "1.3.6.1.4.1.25623.1.0.103997"
+          },
+          "cve": null,
+          "cvss_base": null,
+          "epss": null,
+          "family": "Service detection",
+          "name": "Host Details",
+          "refs": null,
+          "severities": null,
+          "solution": null,
+          "tags": "summary=This scripts aggregates the OS detection information gathered by   several VTs and store it in a structured and unified way.|qod=80|qod_type=remote_banner",
+          "type": null
+        },
+        "original_severity": 0,
+        "original_threat": "Info",
+        "overrides": null,
+        "owner": null,
+        "port": null,
+        "qod": {
+          "type": "remote_banner",
+          "value": 80
+        },
+        "scan_nvt_version": null,
+        "severity": 0,
+        "threat": "Info"
+      },
+      {
+        "@attrs": {
+          "id": "1.3.6.1.4.1.25623.1.0.103997-192_168_178_87-7"
+        },
+        "comment": null,
+        "compliance": null,
+        "creation_time": null,
+        "cve": null,
+        "delta": null,
+        "description": "OS: cpe:/o:netbsd:netbsd\nDetected by: Operating System (OS) Detection (ICMP) (nvt)\nOID: 1.3.6.1.4.1.25623.1.0.102002",
+        "detection": null,
+        "host": {
+          "#text": "192.168.178.87",
+          "asset": null,
+          "hostname": "levoit-purifier.fritz.box"
+        },
+        "modification_time": null,
+        "name": "Host Details",
+        "notes": null,
+        "nvt": {
+          "@attrs": {
+            "oid": "1.3.6.1.4.1.25623.1.0.103997"
+          },
+          "cve": null,
+          "cvss_base": null,
+          "epss": null,
+          "family": "Service detection",
+          "name": "Host Details",
+          "refs": null,
+          "severities": null,
+          "solution": null,
+          "tags": "summary=This scripts aggregates the OS detection information gathered by   several VTs and store it in a structured and unified way.|qod=80|qod_type=remote_banner",
+          "type": null
+        },
+        "original_severity": 0,
+        "original_threat": "Info",
+        "overrides": null,
+        "owner": null,
+        "port": null,
+        "qod": {
+          "type": "remote_banner",
+          "value": 80
+        },
+        "scan_nvt_version": null,
+        "severity": 0,
+        "threat": "Info"
+      },
+      {
+        "@attrs": {
+          "id": "1.3.6.1.4.1.25623.1.0.103997-192_168_178_87-8"
+        },
+        "comment": null,
+        "compliance": null,
+        "creation_time": null,
+        "cve": null,
+        "delta": null,
+        "description": "OS: HP UX\nDetected by: Operating System (OS) Detection (ICMP) (nvt)\nOID: 1.3.6.1.4.1.25623.1.0.102002",
+        "detection": null,
+        "host": {
+          "#text": "192.168.178.87",
+          "asset": null,
+          "hostname": "levoit-purifier.fritz.box"
+        },
+        "modification_time": null,
+        "name": "Host Details",
+        "notes": null,
+        "nvt": {
+          "@attrs": {
+            "oid": "1.3.6.1.4.1.25623.1.0.103997"
+          },
+          "cve": null,
+          "cvss_base": null,
+          "epss": null,
+          "family": "Service detection",
+          "name": "Host Details",
+          "refs": null,
+          "severities": null,
+          "solution": null,
+          "tags": "summary=This scripts aggregates the OS detection information gathered by   several VTs and store it in a structured and unified way.|qod=80|qod_type=remote_banner",
+          "type": null
+        },
+        "original_severity": 0,
+        "original_threat": "Info",
+        "overrides": null,
+        "owner": null,
+        "port": null,
+        "qod": {
+          "type": "remote_banner",
+          "value": 80
+        },
+        "scan_nvt_version": null,
+        "severity": 0,
+        "threat": "Info"
+      },
+      {
+        "@attrs": {
+          "id": "1.3.6.1.4.1.25623.1.0.103997-192_168_178_87-9"
+        },
+        "comment": null,
+        "compliance": null,
+        "creation_time": null,
+        "cve": null,
+        "delta": null,
+        "description": "OS: cpe:/o:hp:hp-ux\nDetected by: Operating System (OS) Detection (ICMP) (nvt)\nOID: 1.3.6.1.4.1.25623.1.0.102002",
+        "detection": null,
+        "host": {
+          "#text": "192.168.178.87",
+          "asset": null,
+          "hostname": "levoit-purifier.fritz.box"
+        },
+        "modification_time": null,
+        "name": "Host Details",
+        "notes": null,
+        "nvt": {
+          "@attrs": {
+            "oid": "1.3.6.1.4.1.25623.1.0.103997"
+          },
+          "cve": null,
+          "cvss_base": null,
+          "epss": null,
+          "family": "Service detection",
+          "name": "Host Details",
+          "refs": null,
+          "severities": null,
+          "solution": null,
+          "tags": "summary=This scripts aggregates the OS detection information gathered by   several VTs and store it in a structured and unified way.|qod=80|qod_type=remote_banner",
+          "type": null
+        },
+        "original_severity": 0,
+        "original_threat": "Info",
+        "overrides": null,
+        "owner": null,
+        "port": null,
+        "qod": {
+          "type": "remote_banner",
+          "value": 80
+        },
+        "scan_nvt_version": null,
+        "severity": 0,
+        "threat": "Info"
+      },
+      {
+        "@attrs": {
+          "id": "1.3.6.1.4.1.25623.1.0.103997-192_168_178_87-10"
+        },
+        "comment": null,
+        "compliance": null,
+        "creation_time": null,
+        "cve": null,
+        "delta": null,
+        "description": "OS-Detection: cpe:/o:openbsd:openbsd\nDetected by:  (nvt)\nOID: 1.3.6.1.4.1.25623.1.0.105937",
+        "detection": null,
+        "host": {
+          "#text": "192.168.178.87",
+          "asset": null,
+          "hostname": "levoit-purifier.fritz.box"
+        },
+        "modification_time": null,
+        "name": "Host Details",
+        "notes": null,
+        "nvt": {
+          "@attrs": {
+            "oid": "1.3.6.1.4.1.25623.1.0.103997"
+          },
+          "cve": null,
+          "cvss_base": null,
+          "epss": null,
+          "family": "Service detection",
+          "name": "Host Details",
+          "refs": null,
+          "severities": null,
+          "solution": null,
+          "tags": "summary=This scripts aggregates the OS detection information gathered by   several VTs and store it in a structured and unified way.|qod=80|qod_type=remote_banner",
+          "type": null
+        },
+        "original_severity": 0,
+        "original_threat": "Info",
+        "overrides": null,
+        "owner": null,
+        "port": null,
+        "qod": {
+          "type": "remote_banner",
+          "value": 80
+        },
+        "scan_nvt_version": null,
+        "severity": 0,
+        "threat": "Info"
+      },
+      {
+        "@attrs": {
+          "id": "1.3.6.1.4.1.25623.1.0.103997-192_168_178_87-11"
+        },
+        "comment": null,
+        "compliance": null,
+        "creation_time": null,
+        "cve": null,
+        "delta": null,
+        "description": "cpe:/o:openbsd:openbsd: general/tcp\nDetected by:  (nvt)\nOID: 1.3.6.1.4.1.25623.1.0.105937",
+        "detection": null,
+        "host": {
+          "#text": "192.168.178.87",
+          "asset": null,
+          "hostname": "levoit-purifier.fritz.box"
+        },
+        "modification_time": null,
+        "name": "Host Details",
+        "notes": null,
+        "nvt": {
+          "@attrs": {
+            "oid": "1.3.6.1.4.1.25623.1.0.103997"
+          },
+          "cve": null,
+          "cvss_base": null,
+          "epss": null,
+          "family": "Service detection",
+          "name": "Host Details",
+          "refs": null,
+          "severities": null,
+          "solution": null,
+          "tags": "summary=This scripts aggregates the OS detection information gathered by   several VTs and store it in a structured and unified way.|qod=80|qod_type=remote_banner",
+          "type": null
+        },
+        "original_severity": 0,
+        "original_threat": "Info",
+        "overrides": null,
+        "owner": null,
+        "port": null,
+        "qod": {
+          "type": "remote_banner",
+          "value": 80
+        },
+        "scan_nvt_version": null,
+        "severity": 0,
+        "threat": "Info"
+      },
+      {
+        "@attrs": {
+          "id": "1.3.6.1.4.1.25623.1.0.103997-192_168_178_87-12"
+        },
+        "comment": null,
+        "compliance": null,
+        "creation_time": null,
+        "cve": null,
+        "delta": null,
+        "description": "traceroute: 192.168.178.24,192.168.178.87\nDetected by: Traceroute (nvt)\nOID: 1.3.6.1.4.1.25623.1.0.51662",
+        "detection": null,
+        "host": {
+          "#text": "192.168.178.87",
+          "asset": null,
+          "hostname": "levoit-purifier.fritz.box"
+        },
+        "modification_time": null,
+        "name": "Host Details",
+        "notes": null,
+        "nvt": {
+          "@attrs": {
+            "oid": "1.3.6.1.4.1.25623.1.0.103997"
+          },
+          "cve": null,
+          "cvss_base": null,
+          "epss": null,
+          "family": "Service detection",
+          "name": "Host Details",
+          "refs": null,
+          "severities": null,
+          "solution": null,
+          "tags": "summary=This scripts aggregates the OS detection information gathered by   several VTs and store it in a structured and unified way.|qod=80|qod_type=remote_banner",
+          "type": null
+        },
+        "original_severity": 0,
+        "original_threat": "Info",
+        "overrides": null,
+        "owner": null,
+        "port": null,
+        "qod": {
+          "type": "remote_banner",
+          "value": 80
+        },
+        "scan_nvt_version": null,
+        "severity": 0,
+        "threat": "Info"
+      },
+      {
+        "@attrs": {
+          "id": "1.3.6.1.4.1.25623.1.0.103997-192_168_178_87-13"
+        },
+        "comment": null,
+        "compliance": null,
+        "creation_time": null,
+        "cve": null,
+        "delta": null,
+        "description": "scanned_with_scanner: 23.41.7\nDetected by: Host Scan End (nvt)\nOID: 1.3.6.1.4.1.25623.1.0.103739",
+        "detection": null,
+        "host": {
+          "#text": "192.168.178.87",
+          "asset": null,
+          "hostname": "levoit-purifier.fritz.box"
+        },
+        "modification_time": null,
+        "name": "Host Details",
+        "notes": null,
+        "nvt": {
+          "@attrs": {
+            "oid": "1.3.6.1.4.1.25623.1.0.103997"
+          },
+          "cve": null,
+          "cvss_base": null,
+          "epss": null,
+          "family": "Service detection",
+          "name": "Host Details",
+          "refs": null,
+          "severities": null,
+          "solution": null,
+          "tags": "summary=This scripts aggregates the OS detection information gathered by   several VTs and store it in a structured and unified way.|qod=80|qod_type=remote_banner",
+          "type": null
+        },
+        "original_severity": 0,
+        "original_threat": "Info",
+        "overrides": null,
+        "owner": null,
+        "port": null,
+        "qod": {
+          "type": "remote_banner",
+          "value": 80
+        },
+        "scan_nvt_version": null,
+        "severity": 0,
+        "threat": "Info"
+      },
+      {
+        "@attrs": {
+          "id": "1.3.6.1.4.1.25623.1.0.103997-192_168_178_87-14"
+        },
+        "comment": null,
+        "compliance": null,
+        "creation_time": null,
+        "cve": null,
+        "delta": null,
+        "description": "scanned_with_feedversion: 202604171712\nDetected by: Host Scan End (nvt)\nOID: 1.3.6.1.4.1.25623.1.0.103739",
+        "detection": null,
+        "host": {
+          "#text": "192.168.178.87",
+          "asset": null,
+          "hostname": "levoit-purifier.fritz.box"
+        },
+        "modification_time": null,
+        "name": "Host Details",
+        "notes": null,
+        "nvt": {
+          "@attrs": {
+            "oid": "1.3.6.1.4.1.25623.1.0.103997"
+          },
+          "cve": null,
+          "cvss_base": null,
+          "epss": null,
+          "family": "Service detection",
+          "name": "Host Details",
+          "refs": null,
+          "severities": null,
+          "solution": null,
+          "tags": "summary=This scripts aggregates the OS detection information gathered by   several VTs and store it in a structured and unified way.|qod=80|qod_type=remote_banner",
+          "type": null
+        },
+        "original_severity": 0,
+        "original_threat": "Info",
+        "overrides": null,
+        "owner": null,
+        "port": null,
+        "qod": {
+          "type": "remote_banner",
+          "value": 80
+        },
+        "scan_nvt_version": null,
+        "severity": 0,
+        "threat": "Info"
+      },
+      {
+        "@attrs": {
+          "id": "1.3.6.1.4.1.25623.1.0.103997-192_168_178_87-15"
+        },
+        "comment": null,
+        "compliance": null,
+        "creation_time": null,
+        "cve": null,
+        "delta": null,
+        "description": "scanned_with_feedtype: Greenbone Enterprise Feed\nDetected by: Host Scan End (nvt)\nOID: 1.3.6.1.4.1.25623.1.0.103739",
+        "detection": null,
+        "host": {
+          "#text": "192.168.178.87",
+          "asset": null,
+          "hostname": "levoit-purifier.fritz.box"
+        },
+        "modification_time": null,
+        "name": "Host Details",
+        "notes": null,
+        "nvt": {
+          "@attrs": {
+            "oid": "1.3.6.1.4.1.25623.1.0.103997"
+          },
+          "cve": null,
+          "cvss_base": null,
+          "epss": null,
+          "family": "Service detection",
+          "name": "Host Details",
+          "refs": null,
+          "severities": null,
+          "solution": null,
+          "tags": "summary=This scripts aggregates the OS detection information gathered by   several VTs and store it in a structured and unified way.|qod=80|qod_type=remote_banner",
+          "type": null
+        },
+        "original_severity": 0,
+        "original_threat": "Info",
+        "overrides": null,
+        "owner": null,
+        "port": null,
+        "qod": {
+          "type": "remote_banner",
+          "value": 80
+        },
+        "scan_nvt_version": null,
+        "severity": 0,
+        "threat": "Info"
+      },
+      {
+        "@attrs": {
+          "id": "1.3.6.1.4.1.25623.1.0.103997-192_168_178_87-16"
+        },
+        "comment": null,
+        "compliance": null,
+        "creation_time": null,
+        "cve": null,
+        "delta": null,
+        "description": "scanned_with_feedname: GSF\nDetected by: Host Scan End (nvt)\nOID: 1.3.6.1.4.1.25623.1.0.103739",
+        "detection": null,
+        "host": {
+          "#text": "192.168.178.87",
+          "asset": null,
+          "hostname": "levoit-purifier.fritz.box"
+        },
+        "modification_time": null,
+        "name": "Host Details",
+        "notes": null,
+        "nvt": {
+          "@attrs": {
+            "oid": "1.3.6.1.4.1.25623.1.0.103997"
+          },
+          "cve": null,
+          "cvss_base": null,
+          "epss": null,
+          "family": "Service detection",
+          "name": "Host Details",
+          "refs": null,
+          "severities": null,
+          "solution": null,
+          "tags": "summary=This scripts aggregates the OS detection information gathered by   several VTs and store it in a structured and unified way.|qod=80|qod_type=remote_banner",
+          "type": null
+        },
+        "original_severity": 0,
+        "original_threat": "Info",
+        "overrides": null,
+        "owner": null,
+        "port": null,
+        "qod": {
+          "type": "remote_banner",
+          "value": 80
+        },
+        "scan_nvt_version": null,
+        "severity": 0,
+        "threat": "Info"
+      },
+      {
+        "@attrs": {
+          "id": "1.3.6.1.4.1.25623.1.0.103997-192_168_178_87-17"
+        },
+        "comment": null,
+        "compliance": null,
+        "creation_time": null,
+        "cve": null,
+        "delta": null,
+        "description": "scanned_with_feedvendor: Greenbone AG\nDetected by: Host Scan End (nvt)\nOID: 1.3.6.1.4.1.25623.1.0.103739",
+        "detection": null,
+        "host": {
+          "#text": "192.168.178.87",
+          "asset": null,
+          "hostname": "levoit-purifier.fritz.box"
+        },
+        "modification_time": null,
+        "name": "Host Details",
+        "notes": null,
+        "nvt": {
+          "@attrs": {
+            "oid": "1.3.6.1.4.1.25623.1.0.103997"
+          },
+          "cve": null,
+          "cvss_base": null,
+          "epss": null,
+          "family": "Service detection",
+          "name": "Host Details",
+          "refs": null,
+          "severities": null,
+          "solution": null,
+          "tags": "summary=This scripts aggregates the OS detection information gathered by   several VTs and store it in a structured and unified way.|qod=80|qod_type=remote_banner",
+          "type": null
+        },
+        "original_severity": 0,
+        "original_threat": "Info",
+        "overrides": null,
+        "owner": null,
+        "port": null,
+        "qod": {
+          "type": "remote_banner",
+          "value": 80
+        },
+        "scan_nvt_version": null,
+        "severity": 0,
+        "threat": "Info"
+      },
+      {
+        "@attrs": {
+          "id": "1.3.6.1.4.1.25623.1.0.103997-192_168_178_87-18"
+        },
+        "comment": null,
+        "compliance": null,
+        "creation_time": null,
+        "cve": null,
+        "delta": null,
+        "description": "hostname_determination: 192.168.178.87,levoit-purifier.fritz.box,Reverse-DNS\nDetected by: Hostname Determination Reporting (nvt)\nOID: 1.3.6.1.4.1.25623.1.0.108449",
+        "detection": null,
+        "host": {
+          "#text": "192.168.178.87",
+          "asset": null,
+          "hostname": "levoit-purifier.fritz.box"
+        },
+        "modification_time": null,
+        "name": "Host Details",
+        "notes": null,
+        "nvt": {
+          "@attrs": {
+            "oid": "1.3.6.1.4.1.25623.1.0.103997"
+          },
+          "cve": null,
+          "cvss_base": null,
+          "epss": null,
+          "family": "Service detection",
+          "name": "Host Details",
+          "refs": null,
+          "severities": null,
+          "solution": null,
+          "tags": "summary=This scripts aggregates the OS detection information gathered by   several VTs and store it in a structured and unified way.|qod=80|qod_type=remote_banner",
+          "type": null
+        },
+        "original_severity": 0,
+        "original_threat": "Info",
+        "overrides": null,
+        "owner": null,
+        "port": null,
+        "qod": {
+          "type": "remote_banner",
+          "value": 80
+        },
+        "scan_nvt_version": null,
+        "severity": 0,
+        "threat": "Info"
+      },
+      {
+        "@attrs": {
+          "id": "1.3.6.1.4.1.25623.1.0.103997-192_168_178_87-19"
+        },
+        "comment": null,
+        "compliance": null,
+        "creation_time": null,
+        "cve": null,
+        "delta": null,
+        "description": "hostname: levoit-purifier.fritz.box\nDetected by: Host Details (nvt)\nOID: 1.3.6.1.4.1.25623.1.0.103997",
+        "detection": null,
+        "host": {
+          "#text": "192.168.178.87",
+          "asset": null,
+          "hostname": "levoit-purifier.fritz.box"
+        },
+        "modification_time": null,
+        "name": "Host Details",
+        "notes": null,
+        "nvt": {
+          "@attrs": {
+            "oid": "1.3.6.1.4.1.25623.1.0.103997"
+          },
+          "cve": null,
+          "cvss_base": null,
+          "epss": null,
+          "family": "Service detection",
+          "name": "Host Details",
+          "refs": null,
+          "severities": null,
+          "solution": null,
+          "tags": "summary=This scripts aggregates the OS detection information gathered by   several VTs and store it in a structured and unified way.|qod=80|qod_type=remote_banner",
+          "type": null
+        },
+        "original_severity": 0,
+        "original_threat": "Info",
+        "overrides": null,
+        "owner": null,
+        "port": null,
+        "qod": {
+          "type": "remote_banner",
+          "value": 80
+        },
+        "scan_nvt_version": null,
+        "severity": 0,
+        "threat": "Info"
+      },
+      {
+        "@attrs": {
+          "id": "1.3.6.1.4.1.25623.1.0.103997-192_168_178_87-20"
+        },
+        "comment": null,
+        "compliance": null,
+        "creation_time": null,
+        "cve": null,
+        "delta": null,
+        "description": "best_os_cpe: cpe:/o:openbsd:openbsd\nDetected by: Operating System (OS) Detection (ICMP) (nvt)\nOID: 1.3.6.1.4.1.25623.1.0.102002;",
+        "detection": null,
+        "host": {
+          "#text": "192.168.178.87",
+          "asset": null,
+          "hostname": "levoit-purifier.fritz.box"
+        },
+        "modification_time": null,
+        "name": "Host Details",
+        "notes": null,
+        "nvt": {
+          "@attrs": {
+            "oid": "1.3.6.1.4.1.25623.1.0.103997"
+          },
+          "cve": null,
+          "cvss_base": null,
+          "epss": null,
+          "family": "Service detection",
+          "name": "Host Details",
+          "refs": null,
+          "severities": null,
+          "solution": null,
+          "tags": "summary=This scripts aggregates the OS detection information gathered by   several VTs and store it in a structured and unified way.|qod=80|qod_type=remote_banner",
+          "type": null
+        },
+        "original_severity": 0,
+        "original_threat": "Info",
+        "overrides": null,
+        "owner": null,
+        "port": null,
+        "qod": {
+          "type": "remote_banner",
+          "value": 80
+        },
+        "scan_nvt_version": null,
+        "severity": 0,
+        "threat": "Info"
+      },
+      {
+        "@attrs": {
+          "id": "1.3.6.1.4.1.25623.1.0.103997-192_168_178_87-21"
+        },
+        "comment": null,
+        "compliance": null,
+        "creation_time": null,
+        "cve": null,
+        "delta": null,
+        "description": "best_os_txt: OpenBSD\nDetected by: Operating System (OS) Detection (ICMP) (nvt)\nOID: 1.3.6.1.4.1.25623.1.0.102002;",
+        "detection": null,
+        "host": {
+          "#text": "192.168.178.87",
+          "asset": null,
+          "hostname": "levoit-purifier.fritz.box"
+        },
+        "modification_time": null,
+        "name": "Host Details",
+        "notes": null,
+        "nvt": {
+          "@attrs": {
+            "oid": "1.3.6.1.4.1.25623.1.0.103997"
+          },
+          "cve": null,
+          "cvss_base": null,
+          "epss": null,
+          "family": "Service detection",
+          "name": "Host Details",
+          "refs": null,
+          "severities": null,
+          "solution": null,
+          "tags": "summary=This scripts aggregates the OS detection information gathered by   several VTs and store it in a structured and unified way.|qod=80|qod_type=remote_banner",
+          "type": null
+        },
+        "original_severity": 0,
+        "original_threat": "Info",
+        "overrides": null,
+        "owner": null,
+        "port": null,
+        "qod": {
+          "type": "remote_banner",
+          "value": 80
+        },
+        "scan_nvt_version": null,
+        "severity": 0,
+        "threat": "Info"
+      }
+    ]
+  },
+  "scan_end": "2026-04-21T20:59:48Z",
+  "scan_run_status": "succeeded",
+  "scan_start": "2026-04-21T20:56:00Z",
+  "severity": {
+    "filtered": 0,
+    "full": 0
+  },
+  "sort": null,
+  "ssl_certs": {
+    "count": 0
+  },
+  "target": null,
+  "task": {
+    "comment": null,
+    "id": "d26a2867-2959-43af-ba5b-1f85b3345951",
+    "name": "levoit-full-fast",
+    "progress": 100,
+    "target": {
+      "comment": null,
+      "id": null,
+      "name": "levoit-full-fast",
+      "trash": 0
+    }
+  },
+  "timestamp": "2026-04-21T20:59:48Z",
+  "timezone": "Europe/Berlin",
+  "timezone_abbrev": null,
+  "tls_certificates": null,
+  "vulns": {
+    "count": 21
+  }
+}

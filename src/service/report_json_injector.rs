@@ -170,3 +170,7 @@ fn value_to_string(value: &Value) -> String {
         other => other.to_string(),
     }
 }
+
+#[cfg(test)]
+#[path = "report_json_injector_tests.rs"]
+mod report_json_injector_tests;

@@ -7,6 +7,9 @@ use std::{
 use thiserror::Error;
 use tracing::{info, warn};
 
+use crate::infra::fs::{
+    copy_dir_recursive, list_relative_files, make_executable_best_effort, walk_files,
+};
 use crate::{
     domain::report_format::ReportFormat,
     infra::process::run_cmd,
@@ -184,7 +187,7 @@ impl JsonReportRenderer {
                 format_id = %fmt.id,
                 returncode = output.returncode,
                 stderr = %stderr,
-                tmp_files = ?list_files(tmp_path),
+                tmp_files = ?list_relative_files(tmp_path),
                 "render produced no output"
             );
 
@@ -192,7 +195,7 @@ impl JsonReportRenderer {
                 format_id: fmt.id.clone(),
                 returncode: output.returncode,
                 stderr,
-                tmp_files: list_files(tmp_path),
+                tmp_files: list_relative_files(tmp_path),
             });
         }
 
@@ -279,26 +282,6 @@ fn copy_format_assets(src_dir: &Path, dst_dir: &Path) -> std::io::Result<HashSet
     Ok(assets)
 }
 
-fn walk_files(root: &Path) -> std::io::Result<Vec<PathBuf>> {
-    let mut files = Vec::new();
-
-    if !root.exists() {
-        return Ok(files);
-    }
-
-    for entry in fs::read_dir(root)? {
-        let path = entry?.path();
-
-        if path.is_dir() {
-            files.extend(walk_files(&path)?);
-        } else if path.is_file() {
-            files.push(path);
-        }
-    }
-
-    Ok(files)
-}
-
 fn snapshot_meta(root: &Path) -> HashMap<PathBuf, (std::time::SystemTime, u64)> {
     let mut snapshot = HashMap::new();
 
@@ -373,18 +356,6 @@ fn is_changed(path: &Path, before: &HashMap<PathBuf, (std::time::SystemTime, u64
     }
 }
 
-fn list_files(tmpdir: &Path) -> Vec<String> {
-    walk_files(tmpdir)
-        .unwrap_or_default()
-        .into_iter()
-        .filter_map(|path| {
-            path.strip_prefix(tmpdir)
-                .ok()
-                .map(|rel| rel.display().to_string())
-        })
-        .collect()
-}
-
 fn fallback_extension(extension: &str) -> &str {
     let extension = extension.trim().trim_start_matches('.');
 
@@ -394,20 +365,6 @@ fn fallback_extension(extension: &str) -> &str {
         extension
     }
 }
-
-#[cfg(unix)]
-fn make_executable_best_effort(path: &Path) {
-    use std::os::unix::fs::PermissionsExt;
-
-    if let Ok(metadata) = fs::metadata(path) {
-        let mut permissions = metadata.permissions();
-        permissions.set_mode(permissions.mode() | 0o111);
-        let _ = fs::set_permissions(path, permissions);
-    }
-}
-
-#[cfg(not(unix))]
-fn make_executable_best_effort(_path: &Path) {}
 
 fn maybe_copy_debug_tmpdir(format_id: &str, tmpdir: &Path) {
     let Ok(debug_root) = std::env::var("GVMR_RENDER_DEBUG_DIR") else {
@@ -443,24 +400,6 @@ fn maybe_copy_debug_tmpdir(format_id: &str, tmpdir: &Path) {
     );
 }
 
-fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
-    fs::create_dir_all(dst)?;
-
-    for entry in fs::read_dir(src)? {
-        let entry = entry?;
-        let src_path = entry.path();
-        let dst_path = dst.join(entry.file_name());
-
-        if src_path.is_dir() {
-            copy_dir_recursive(&src_path, &dst_path)?;
-        } else if src_path.is_file() {
-            fs::copy(&src_path, &dst_path)?;
-        }
-    }
-
-    Ok(())
-}
-
 fn current_unix_timestamp() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -480,3 +419,7 @@ fn maybe_write_debug_json(name: &str, value: &serde_json::Value) {
         serde_json::to_string_pretty(value).unwrap_or_default(),
     );
 }
+
+#[cfg(test)]
+#[path = "json_report_renderer_tests.rs"]
+mod json_report_renderer_tests;

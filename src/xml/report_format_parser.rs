@@ -168,3 +168,7 @@ pub fn parse_report_format_xml(path: &Path) -> Result<ParsedReportFormat, Report
         files,
     })
 }
+
+#[cfg(test)]
+#[path = "report_format_parser_tests.rs"]
+mod report_format_parser_tests;

@@ -437,3 +437,7 @@ fn strip_nulls(value: &mut Value) {
         _ => {}
     }
 }
+
+#[cfg(test)]
+#[path = "report_xml_builder_tests.rs"]
+mod report_xml_builder_tests;

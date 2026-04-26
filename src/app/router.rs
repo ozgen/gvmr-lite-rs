@@ -37,11 +37,13 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/v1/render", post(render::render))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
+    let max_body_bytes = state.settings.max_body_bytes;
+
     Router::new()
         .merge(public_routes)
         .merge(protected_routes)
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .with_state(state)
-        .layer(DefaultBodyLimit::max(50 * 1024 * 1024)) // todo move this env variable
+        .layer(DefaultBodyLimit::max(max_body_bytes))
         .layer(TraceLayer::new_for_http())
 }

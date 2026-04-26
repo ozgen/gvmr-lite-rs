@@ -12,6 +12,7 @@ All configuration variables use the `GVMR_` prefix.
 | `GVMR_REPORT_FORMATS_FEED_DIR` | `/var/lib/gvm/data-objects/gvmd/report-formats` | Source directory containing report format files and related assets |
 | `GVMR_WORK_DIR`                |                           `/tmp/gvmr-lite/work` | Working directory used by the service                              |
 | `GVMR_REBUILD_ON_START`        |                                          `true` | Rebuild or rematerialize cached report formats on startup          |
+| `GVMR_MAX_BODY_BYTES`          |                                      `52428800` | Maximum accepted HTTP request body size in bytes                   |
 
 Derived internally:
 
@@ -107,6 +108,9 @@ GVMR_WORK_DIR=/tmp/gvmr-lite/work
 
 # Startup
 GVMR_REBUILD_ON_START=true
+
+# Request limits
+GVMR_MAX_BODY_BYTES=52428800
 
 # Auth (none|api_key|jwt)
 GVMR_AUTH_MODE=jwt

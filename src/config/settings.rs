@@ -25,7 +25,6 @@ impl FromStr for AuthMode {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct Settings {
     pub port: u16,
@@ -44,6 +43,8 @@ pub struct Settings {
 
     pub required_scope_render: String,
     pub required_scope_sync: String,
+
+    pub max_body_bytes: usize,
 
     pub rebuild_on_start: bool,
 
@@ -70,6 +71,8 @@ struct RawSettings {
     required_scope_render: String,
     required_scope_sync: String,
 
+    max_body_bytes: usize,
+
     rebuild_on_start: bool,
 
     log_level: String,
@@ -94,6 +97,7 @@ impl Settings {
             .set_default("jwt_clock_skew_seconds", 300)?
             .set_default("required_scope_render", "render")?
             .set_default("required_scope_sync", "sync")?
+            .set_default("max_body_bytes", 50 * 1024 * 1024)?
             .set_default("rebuild_on_start", true)?
             .set_default("log_level", "info")?
             .set_default("log_format", "pretty")?
@@ -105,6 +109,12 @@ impl Settings {
         if raw.port == 0 {
             return Err(config::ConfigError::Message(
                 "port must be between 1 and 65535".to_string(),
+            ));
+        }
+
+        if raw.max_body_bytes == 0 {
+            return Err(config::ConfigError::Message(
+                "max_body_bytes must be greater than 0".to_string(),
             ));
         }
 
@@ -121,6 +131,7 @@ impl Settings {
             jwt_clock_skew_seconds: raw.jwt_clock_skew_seconds,
             required_scope_render: raw.required_scope_render,
             required_scope_sync: raw.required_scope_sync,
+            max_body_bytes: raw.max_body_bytes,
             rebuild_on_start: raw.rebuild_on_start,
             log_level: raw.log_level,
             log_format: raw.log_format,

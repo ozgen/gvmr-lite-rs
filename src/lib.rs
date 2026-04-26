@@ -15,12 +15,12 @@ use tokio::net::TcpListener;
 use tracing::info;
 
 use crate::{
-    app::{router::build_router, state::AppState},
+    app::{error::AppError, router::build_router, state::AppState},
     config::settings::Settings,
     service::format_cache::FormatCache,
 };
 
-pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run() -> Result<(), AppError> {
     let settings = Settings::load()?;
     telemetry::init(&settings);
 
@@ -41,7 +41,7 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
         settings.rebuild_on_start,
     );
 
-    format_cache.initialize()?;
+    format_cache.initialize().map_err(AppError::Bind)?;
 
     info!(
         formats_count = format_cache.list().len(),
@@ -52,12 +52,12 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let app = build_router(app_state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], settings.port));
-    let listener = TcpListener::bind(addr).await?;
+    let listener = TcpListener::bind(addr).await.map_err(AppError::Server)?;
 
     info!(bind_address = %addr, "tcp listener bound");
     info!("starting HTTP server");
 
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app).await.map_err(AppError::Server)?;
 
     Ok(())
 }

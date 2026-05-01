@@ -382,7 +382,7 @@ fn maybe_copy_debug_tmpdir(format_id: &str, tmpdir: &Path) {
         return;
     }
 
-    let debug_dir = debug_root.join(format!("{format_id}-{}", current_unix_timestamp()));
+    let debug_dir = debug_root.join(format!("{format_id}-{}", current_unix_timestamp_nanos()));
 
     if let Err(err) = copy_dir_recursive(tmpdir, &debug_dir) {
         tracing::warn!(
@@ -394,17 +394,21 @@ fn maybe_copy_debug_tmpdir(format_id: &str, tmpdir: &Path) {
         return;
     }
 
+    dbg!(&debug_root);
+    dbg!(&debug_dir);
+    dbg!(tmpdir.exists());
+
     tracing::info!(
         debug_dir = %debug_dir.display(),
         "copied render temp directory for debugging"
     );
 }
 
-fn current_unix_timestamp() -> u64 {
+fn current_unix_timestamp_nanos() -> u128 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|duration| duration.as_secs())
-        .unwrap_or(0)
+        .unwrap_or_default()
+        .as_nanos()
 }
 
 fn maybe_write_debug_json(name: &str, value: &serde_json::Value) {

@@ -76,3 +76,7 @@ fn parse_scopes(scope: Option<String>, scopes: Option<Vec<String>>) -> HashSet<S
 
     result
 }
+
+#[cfg(test)]
+#[path = "jwt_tests.rs"]
+mod jwt_tests;

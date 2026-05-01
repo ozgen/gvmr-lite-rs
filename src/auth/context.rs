@@ -4,7 +4,6 @@ use axum::{extract::FromRequestParts, http::request::Parts};
 
 use crate::api::error::ApiError;
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, Default)]
 pub struct AuthContext {
     pub subject: Option<String>,

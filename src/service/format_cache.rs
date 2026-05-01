@@ -26,7 +26,6 @@ pub struct FormatCache {
     formats: HashMap<String, ReportFormat>,
 }
 
-#[allow(dead_code)]
 impl FormatCache {
     pub fn new(feed_dir: PathBuf, work_dir: PathBuf, rebuild_on_start: bool) -> Self {
         Self {

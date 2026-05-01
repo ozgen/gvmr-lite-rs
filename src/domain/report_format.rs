@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ReportFormatFile {
     pub name: String,
@@ -16,7 +15,6 @@ impl ReportFormatFile {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ReportFormat {
     pub id: String,
@@ -27,7 +25,6 @@ pub struct ReportFormat {
     pub files: Vec<ReportFormatFile>,
 }
 
-#[allow(dead_code)]
 impl ReportFormat {
     pub fn new(
         id: impl Into<String>,

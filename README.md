@@ -58,25 +58,73 @@ cargo run
 
 ---
 
+## Development Setup
+
+### Recommended Tools
+
+Install these tools for a faster and more productive development workflow:
+
+```bash
+cargo install bacon
+cargo install cargo-nextest --locked
+cargo install cargo-tarpaulin
+```
+
+### Usage
+
+Start the development watcher:
+
+```bash
+bacon
+```
+
+Useful shortcuts inside Bacon:
+
+| Key | Action                   |
+| --- | ------------------------ |
+| `r` | Run the service          |
+| `t` | Run tests (nextest)      |
+| `c` | Run clippy (strict)      |
+| `f` | Fix formatting           |
+| `x` | Check formatting         |
+| `v` | Run coverage (tarpaulin) |
+
+---
+
+## Code Quality
+
+### Format code
+
+```bash
+cargo fmt --all
+```
+
+### Lint (strict)
+
+```bash
+cargo clippy --all-targets --all-features -- -D warnings
+```
+
+### Run tests
+
+```bash
+cargo nextest run --all-targets
+```
+
+### Coverage
+
+```bash
+cargo tarpaulin --all-targets --ignore-tests --out Html
+```
+
+---
+
 ## API
 
 When the service is running, interactive API documentation is available:
 
-- Swagger UI: http://localhost:8084/docs
-- OpenAPI spec: http://localhost:8084/api-docs/openapi.json
-
----
-
-## Project Structure
-
-```text
-src/
-  api/        # HTTP handlers + DTOs
-  app/        # Router + AppState
-  config/     # Settings loading
-  telemetry/  # Logging setup
-  main.rs     # Entry point
-```
+- Swagger UI: [http://localhost:8084/docs](http://localhost:8084/docs)
+- OpenAPI spec: [http://localhost:8084/api-docs/openapi.json](http://localhost:8084/api-docs/openapi.json)
 
 ---
 
@@ -86,17 +134,6 @@ src/
 - Typed configuration via environment variables
 - Minimal framework leakage into core logic
 - Pluggable rendering architecture (planned)
-
----
-
-## Roadmap
-
-- [ ] Format cache service
-- [ ] Authentication (api_key, jwt)
-- [ ] Report format sync
-- [ ] Rendering pipeline
-- [ ] OpenAPI / Swagger
-- [ ] Integration tests
 
 ---
 

@@ -323,7 +323,9 @@ fn maybe_write_debug_json_does_nothing_without_env_var() {
 
 #[test]
 fn maybe_write_debug_json_writes_file_when_env_var_is_set() {
-   let _guard = ENV_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let _guard = ENV_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
 
     let root = temp_test_dir("debug-json");
 
@@ -347,7 +349,9 @@ fn maybe_write_debug_json_writes_file_when_env_var_is_set() {
 
 #[test]
 fn maybe_copy_debug_tmpdir_does_nothing_without_env_var() {
-   let _guard = ENV_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let _guard = ENV_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
 
     unsafe {
         std::env::remove_var("GVMR_RENDER_DEBUG_DIR");
@@ -363,7 +367,9 @@ fn maybe_copy_debug_tmpdir_does_nothing_without_env_var() {
 
 #[test]
 fn maybe_copy_debug_tmpdir_copies_tempdir_when_env_var_is_set() {
-   let _guard = ENV_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let _guard = ENV_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
 
     let source = temp_test_dir("debug-copy-source");
     let debug_root = temp_test_dir("debug-copy-root");

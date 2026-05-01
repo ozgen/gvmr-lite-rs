@@ -76,3 +76,7 @@ async fn require_jwt(state: AppState, mut req: Request<axum::body::Body>, next: 
 
     next.run(req).await
 }
+
+#[cfg(test)]
+#[path = "middleware_tests.rs"]
+mod middleware_tests;

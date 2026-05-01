@@ -1,7 +1,9 @@
 use super::*;
 use crate::infra::fs::make_executable_best_effort;
 use serde_json::json;
-use std::{collections::HashSet, fs, path::PathBuf};
+use std::{collections::HashSet, fs, path::PathBuf, sync::Mutex};
+
+static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 #[tokio::test]
 async fn render_returns_error_when_generate_script_is_missing() {
@@ -358,6 +360,8 @@ fn maybe_copy_debug_tmpdir_does_nothing_without_env_var() {
 
 #[test]
 fn maybe_copy_debug_tmpdir_copies_tempdir_when_env_var_is_set() {
+    let _guard = ENV_LOCK.lock().unwrap();
+
     let source = temp_test_dir("debug-copy-source");
     let debug_root = temp_test_dir("debug-copy-root");
 

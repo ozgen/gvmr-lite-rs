@@ -250,3 +250,7 @@ impl FormatCache {
             || DISCARDED_REPORT_FORMAT_IDS.contains(&format_id)
     }
 }
+
+#[cfg(test)]
+#[path = "format_cache_tests.rs"]
+mod format_cache_tests;

@@ -88,3 +88,7 @@ pub async fn run_cmd(
         stderr,
     })
 }
+
+#[cfg(test)]
+#[path = "process_tests.rs"]
+mod process_tests;

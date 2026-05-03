@@ -11,6 +11,7 @@ pub fn ensure_dir(path: &Path) -> io::Result<()> {
 pub fn write_bytes_atomic(path: &Path, data: &[u8]) -> io::Result<()> {
     let parent = path
         .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "path has no parent"))?;
 
     fs::create_dir_all(parent)?;
@@ -166,3 +167,7 @@ fn temp_path(path: &Path) -> PathBuf {
 
     path.with_file_name(format!(".{file_name}.tmp"))
 }
+
+#[cfg(test)]
+#[path = "fs_tests.rs"]
+mod fs_tests;

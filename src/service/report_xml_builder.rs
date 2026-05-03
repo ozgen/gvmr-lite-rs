@@ -1,4 +1,4 @@
-use crate::domain::report_xm_constants::{
+use crate::domain::report_xml_constants::{
     FORCE_TEXT_TAGS, HOST_KEY_ORDER, REPORT_KEY_ORDER, RESULT_KEY_ORDER, SPECIAL_KEYS,
 };
 use serde_json::{Map, Value, json};

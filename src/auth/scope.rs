@@ -11,3 +11,7 @@ pub fn require_scope(ctx: &AuthContext, auth_mode: &AuthMode, scope: &str) -> Re
 
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "scope_tests.rs"]
+mod scope_tests;

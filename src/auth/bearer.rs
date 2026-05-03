@@ -15,3 +15,7 @@ pub fn extract_bearer(authorization: Option<&str>) -> Option<String> {
 
     Some(token.to_string())
 }
+
+#[cfg(test)]
+#[path = "bearer_tests.rs"]
+mod bearer_tests;

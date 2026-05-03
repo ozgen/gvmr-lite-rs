@@ -26,3 +26,7 @@ where
             .ok_or_else(|| ApiError::unauthorized("Missing auth context"))
     }
 }
+
+#[cfg(test)]
+#[path = "context_tests.rs"]
+mod context_tests;

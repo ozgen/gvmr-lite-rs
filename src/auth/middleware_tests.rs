@@ -10,6 +10,8 @@ use axum::{
     response::IntoResponse,
     routing::get,
 };
+use jsonwebtoken::{EncodingKey, Header, encode};
+use serde::Serialize;
 use serde_json::json;
 use tokio::sync::RwLock;
 use tower::util::ServiceExt;
@@ -42,9 +44,9 @@ fn test_settings(auth_mode: AuthMode) -> Settings {
         api_key_header: "x-api-key".to_string(),
 
         jwt_secret: None,
-        jwt_audience: String::new(),
-        jwt_issuer: String::new(),
-        jwt_clock_skew_seconds: 0,
+        jwt_audience: "gvmr-lite-rs".to_string(),
+        jwt_issuer: "test-issuer".to_string(),
+        jwt_clock_skew_seconds: 300,
 
         required_scope_render: String::new(),
         required_scope_sync: String::new(),
@@ -71,6 +73,33 @@ fn test_app(settings: Settings) -> Router {
         .route("/protected", get(protected_handler))
         .layer(middleware::from_fn_with_state(state.clone(), require_auth))
         .with_state(state)
+}
+
+#[derive(Debug, Serialize)]
+struct TestClaims {
+    sub: String,
+    exp: usize,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    scope: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    scopes: Option<Vec<String>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    iss: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    aud: Option<String>,
+}
+
+fn test_jwt(secret: &str, claims: TestClaims) -> String {
+    encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(secret.as_bytes()),
+    )
+    .unwrap()
 }
 
 #[tokio::test]
@@ -241,4 +270,98 @@ async fn require_auth_returns_401_when_authorization_header_is_not_bearer() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn require_auth_allows_request_when_jwt_is_valid_and_inserts_auth_context() {
+    let mut settings = test_settings(AuthMode::Jwt);
+    settings.jwt_secret = Some("secret".to_string());
+    settings.jwt_issuer = "test-issuer".to_string();
+    settings.jwt_audience = "gvmr-lite-rs".to_string();
+
+    let token = test_jwt(
+        "secret",
+        TestClaims {
+            sub: "user-123".to_string(),
+            exp: 4_102_444_800,
+            scope: None,
+            scopes: Some(vec!["render".to_string(), "sync".to_string()]),
+            iss: Some("test-issuer".to_string()),
+            aud: Some("gvmr-lite-rs".to_string()),
+        },
+    );
+
+    let app = test_app(settings);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/protected")
+                .header("authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let value: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+    assert_eq!(value["subject"], "user-123");
+    assert!(
+        value["scopes"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("render"))
+    );
+    assert!(value["scopes"].as_array().unwrap().contains(&json!("sync")));
+}
+
+#[tokio::test]
+async fn require_auth_allows_jwt_scopes_array_claim() {
+    let mut settings = test_settings(AuthMode::Jwt);
+    settings.jwt_secret = Some("secret".to_string());
+    settings.jwt_issuer = "test-issuer".to_string();
+    settings.jwt_audience = "gvmr-lite-rs".to_string();
+
+    let token = test_jwt(
+        "secret",
+        TestClaims {
+            sub: "user-123".to_string(),
+            exp: 4_102_444_800,
+            scope: None,
+            scopes: Some(vec!["render".to_string(), "sync".to_string()]),
+            iss: Some("test-issuer".to_string()),
+            aud: Some("gvmr-lite-rs".to_string()),
+        },
+    );
+
+    let app = test_app(settings);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/protected")
+                .header("authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let value: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+    assert_eq!(value["subject"], "user-123");
+    assert!(
+        value["scopes"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("render"))
+    );
+    assert!(value["scopes"].as_array().unwrap().contains(&json!("sync")));
 }

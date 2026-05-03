@@ -23,4 +23,5 @@ utoipa = "5.4.0"
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
 
 [dev-dependencies]
+serial_test = "3.4.0"
 tower = { version = "0.5", features = ["util"] }

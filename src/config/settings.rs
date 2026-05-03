@@ -1,8 +1,9 @@
 use std::{path::PathBuf, str::FromStr};
 
+use config::{builder::DefaultState, ConfigBuilder};
 use serde::Deserialize;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthMode {
     None,
@@ -57,24 +58,17 @@ struct RawSettings {
     port: u16,
     report_formats_feed_dir: PathBuf,
     work_dir: PathBuf,
-
     auth_mode: String,
-
     api_key: Option<String>,
     api_key_header: String,
-
     jwt_secret: Option<String>,
     jwt_audience: String,
     jwt_issuer: String,
     jwt_clock_skew_seconds: u64,
-
     required_scope_render: String,
     required_scope_sync: String,
-
     max_body_bytes: usize,
-
     rebuild_on_start: bool,
-
     log_level: String,
     log_format: String,
 }
@@ -83,7 +77,17 @@ impl Settings {
     pub fn load() -> Result<Self, config::ConfigError> {
         let _ = dotenvy::dotenv();
 
-        let config = config::Config::builder()
+        let config = Self::config_builder()?
+            .add_source(config::Environment::with_prefix("GVMR"))
+            .build()?;
+
+        let raw = config.try_deserialize::<RawSettings>()?;
+
+        Self::from_raw(raw)
+    }
+
+    fn config_builder() -> Result<ConfigBuilder<DefaultState>, config::ConfigError> {
+        config::Config::builder()
             .set_default("port", 8084)?
             .set_default(
                 "report_formats_feed_dir",
@@ -100,12 +104,10 @@ impl Settings {
             .set_default("max_body_bytes", 50 * 1024 * 1024)?
             .set_default("rebuild_on_start", true)?
             .set_default("log_level", "info")?
-            .set_default("log_format", "pretty")?
-            .add_source(config::Environment::with_prefix("GVMR"))
-            .build()?;
+            .set_default("log_format", "pretty")
+    }
 
-        let raw: RawSettings = config.try_deserialize()?;
-
+    fn from_raw(raw: RawSettings) -> Result<Self, config::ConfigError> {
         if raw.port == 0 {
             return Err(config::ConfigError::Message(
                 "port must be between 1 and 65535".to_string(),
@@ -142,3 +144,7 @@ impl Settings {
         self.work_dir.join("report-formats")
     }
 }
+
+#[cfg(test)]
+#[path = "settings_tests.rs"]
+mod settings_tests;

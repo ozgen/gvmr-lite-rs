@@ -1,6 +1,6 @@
 use std::{path::PathBuf, str::FromStr};
 
-use config::{builder::DefaultState, ConfigBuilder};
+use config::{ConfigBuilder, builder::DefaultState};
 use serde::Deserialize;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]

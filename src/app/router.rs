@@ -47,3 +47,7 @@ pub fn build_router(state: AppState) -> Router {
         .layer(DefaultBodyLimit::max(max_body_bytes))
         .layer(TraceLayer::new_for_http())
 }
+
+#[cfg(test)]
+#[path = "router_tests.rs"]
+mod router_tests;

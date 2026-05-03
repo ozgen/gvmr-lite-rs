@@ -20,11 +20,12 @@ need_stdout = true
 [jobs.coverage]
 command = [
   "cargo",
-  "tarpaulin",
+  "llvm-cov",
   "--all-targets",
-  "--ignore-tests",
-  "--out",
-  "Html",
+  "--ignore-filename-regex",
+  "(_tests\\.rs|tests/)",
+  "--html",
+  "--open",
 ]
 need_stdout = true
 

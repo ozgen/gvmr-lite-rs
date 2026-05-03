@@ -67,7 +67,8 @@ Install these tools for a faster and more productive development workflow:
 ```bash
 cargo install bacon
 cargo install cargo-nextest --locked
-cargo install cargo-tarpaulin
+cargo install cargo-llvm-cov
+
 ```
 
 ### Usage
@@ -80,14 +81,14 @@ bacon
 
 Useful shortcuts inside Bacon:
 
-| Key | Action                   |
-| --- | ------------------------ |
-| `r` | Run the service          |
-| `t` | Run tests (nextest)      |
-| `c` | Run clippy (strict)      |
-| `f` | Fix formatting           |
-| `x` | Check formatting         |
-| `v` | Run coverage (tarpaulin) |
+| Key | Action                  |
+| --- | ----------------------- |
+| `r` | Run the service         |
+| `t` | Run tests (nextest)     |
+| `c` | Run clippy (strict)     |
+| `f` | Fix formatting          |
+| `x` | Check formatting        |
+| `v` | Run coverage (llvm-cov) |
 
 ---
 
@@ -114,7 +115,7 @@ cargo nextest run --all-targets
 ### Coverage
 
 ```bash
-cargo tarpaulin --all-targets --ignore-tests --out Html
+cargo llvm-cov --all-targets --ignore-filename-regex '(_tests\.rs|tests/)' --html --open
 ```
 
 ---

@@ -26,3 +26,11 @@ use utoipa::OpenApi;
     )
 )]
 pub struct ApiDoc;
+
+#[cfg(test)]
+#[test]
+fn openapi_document_can_be_generated() {
+    let doc = ApiDoc::openapi();
+
+    assert_eq!(doc.info.title, env!("CARGO_PKG_NAME"));
+}

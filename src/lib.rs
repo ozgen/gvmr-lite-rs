@@ -24,6 +24,19 @@ pub async fn run() -> Result<(), AppError> {
     let settings = Settings::load()?;
     telemetry::init(&settings);
 
+    let app_state = build_app_state(settings.clone())?;
+    let app = build_router(app_state);
+
+    let listener = bind_listener(settings.port).await?;
+
+    info!("starting HTTP server");
+
+    axum::serve(listener, app).await.map_err(AppError::Server)?;
+
+    Ok(())
+}
+
+pub(crate) fn build_app_state(settings: Settings) -> Result<AppState, AppError> {
     info!(
         port = settings.port,
         auth_mode = ?settings.auth_mode,
@@ -48,16 +61,14 @@ pub async fn run() -> Result<(), AppError> {
         "format cache initialized"
     );
 
-    let app_state = AppState::new(settings.clone(), format_cache);
-    let app = build_router(app_state);
-
-    let addr = SocketAddr::from(([0, 0, 0, 0], settings.port));
-    let listener = TcpListener::bind(addr).await.map_err(AppError::Server)?;
-
-    info!(bind_address = %addr, "tcp listener bound");
-    info!("starting HTTP server");
-
-    axum::serve(listener, app).await.map_err(AppError::Server)?;
-
-    Ok(())
+    Ok(AppState::new(settings, format_cache))
 }
+
+pub(crate) async fn bind_listener(port: u16) -> Result<TcpListener, AppError> {
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    info!(bind_address = %addr, "tcp listener bound");
+    TcpListener::bind(addr).await.map_err(AppError::Server)
+}
+
+#[cfg(test)]
+mod lib_tests;

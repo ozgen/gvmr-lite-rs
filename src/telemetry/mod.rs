@@ -3,8 +3,7 @@ use tracing_subscriber::{EnvFilter, fmt};
 use crate::config::settings::Settings;
 
 pub fn init(settings: &Settings) {
-    let env_filter =
-        EnvFilter::try_new(settings.log_level.clone()).unwrap_or_else(|_| EnvFilter::new("info"));
+    let env_filter = env_filter_from(&settings.log_level);
 
     match settings.log_format.as_str() {
         "json" => {
@@ -27,3 +26,10 @@ pub fn init(settings: &Settings) {
         }
     }
 }
+
+fn env_filter_from(log_level: &str) -> EnvFilter {
+    EnvFilter::try_new(log_level).unwrap_or_else(|_| EnvFilter::new("info"))
+}
+
+#[cfg(test)]
+mod telemetry_tests;

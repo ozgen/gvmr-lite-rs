@@ -7,9 +7,12 @@ use super::*;
 
 #[tokio::test]
 async fn extracts_auth_context_from_request_extensions() {
-    let mut expected = AuthContext::default();
-    expected.subject = Some("user-123".to_string());
-    expected.scopes.insert("render".to_string());
+    let expected = AuthContext {
+        subject: Some("user-123".to_string()),
+        audience: Some("gvmr-lite-rs".to_string()),
+        issuer: Some("test-suite".to_string()),
+        scopes: HashSet::from(["render".to_string()]),
+    };
 
     let request = Request::builder().uri("/test").body(()).unwrap();
 
@@ -21,6 +24,8 @@ async fn extracts_auth_context_from_request_extensions() {
         .unwrap();
 
     assert_eq!(actual.subject, expected.subject);
+    assert_eq!(actual.audience, expected.audience);
+    assert_eq!(actual.issuer, expected.issuer);
     assert_eq!(actual.scopes, expected.scopes);
 }
 

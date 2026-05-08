@@ -35,7 +35,6 @@ pub fn build_router(state: AppState) -> Router {
             post(report_format::sync_report_formats),
         )
         .route("/api/v1/render", post(render::render))
-        .route_layer(middleware::from_fn_with_state(state.clone(), require_auth))
         .route("/api/v1/render/xml", post(render::render_xml))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 

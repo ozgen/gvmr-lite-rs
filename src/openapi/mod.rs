@@ -19,8 +19,8 @@ use utoipa::OpenApi;
             crate::api::dto::report_format::ReportFormatResponse,
             crate::api::dto::report_format::ReportFormatListResponse,
             crate::api::dto::report_format::ReportFormatSyncResponse,
-            crate:: api::dto::render::RenderRequest,
-            crate:: api::dto::render_xml::RenderXmlRequest,
+            crate::api::dto::render::RenderRequest,
+            crate::api::dto::render_xml::RenderXmlRequest,
         )
     ),
     tags(

@@ -10,6 +10,15 @@ This project is a Rust rewrite of `gvmr-lite`, focusing on:
 
 ---
 
+## Build status
+
+![CI](https://github.com/ozgen/gvmr-lite-rs/actions/workflows/ci.yml/badge.svg)
+![Lint](https://github.com/ozgen/gvmr-lite-rs/actions/workflows/lint.yml/badge.svg)
+![Format](https://github.com/ozgen/gvmr-lite-rs/actions/workflows/fmt.yml/badge.svg)
+[![codecov](https://codecov.io/gh/ozgen/gvmr-lite-rs/branch/main/graph/badge.svg)](https://codecov.io/gh/ozgen/gvmr-lite-rs)
+
+---
+
 ## Documentation
 
 - [Environment Variables](./docs/ENVIRONMENT_VARIABLES.md)

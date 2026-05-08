@@ -1,15 +1,16 @@
+use async_trait::async_trait;
 use std::{
     collections::{HashMap, HashSet},
     fs,
     path::{Path, PathBuf},
 };
-
 use thiserror::Error;
 use tracing::{info, warn};
 
 use crate::infra::fs::{
     copy_dir_recursive, list_relative_files, make_executable_best_effort, walk_files,
 };
+use crate::service::report_renderer::ReportRenderer;
 use crate::{
     domain::report_format::ReportFormat,
     infra::process::run_cmd,
@@ -66,7 +67,7 @@ pub struct RenderResult {
 pub struct JsonReportRenderer;
 
 impl JsonReportRenderer {
-    pub async fn render(
+    pub async fn render_report(
         &self,
         fmt: &ReportFormat,
         report_json: &serde_json::Value,
@@ -422,6 +423,21 @@ fn maybe_write_debug_json(name: &str, value: &serde_json::Value) {
         path,
         serde_json::to_string_pretty(value).unwrap_or_default(),
     );
+}
+
+#[async_trait]
+impl ReportRenderer for JsonReportRenderer {
+    async fn render(
+        &self,
+        fmt: &ReportFormat,
+        report_json: &serde_json::Value,
+        params: &serde_json::Map<String, serde_json::Value>,
+        timeout_seconds: u64,
+        output_name: Option<&str>,
+    ) -> Result<RenderResult, RenderError> {
+        self.render_report(fmt, report_json, params, timeout_seconds, output_name)
+            .await
+    }
 }
 
 #[cfg(test)]

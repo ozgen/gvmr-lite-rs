@@ -1,10 +1,7 @@
-use std::sync::Arc;
-
 use axum::{
     body::{Body, to_bytes},
     http::{Request, StatusCode},
 };
-use tokio::sync::RwLock;
 use tower::ServiceExt;
 
 use crate::{
@@ -39,14 +36,11 @@ fn test_state(auth_mode: AuthMode) -> AppState {
 
     let format_cache = FormatCache::new(
         settings.report_formats_feed_dir.clone(),
-        settings.work_dir.clone(),
+        settings.report_formats_work_dir(),
         settings.rebuild_on_start,
     );
 
-    AppState {
-        settings,
-        format_cache: Arc::new(RwLock::new(format_cache)),
-    }
+    AppState::new(settings, format_cache)
 }
 
 #[tokio::test]

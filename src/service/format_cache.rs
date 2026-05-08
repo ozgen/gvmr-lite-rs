@@ -248,6 +248,21 @@ impl FormatCache {
         report_type.eq_ignore_ascii_case("audit")
             || DISCARDED_REPORT_FORMAT_IDS.contains(&format_id)
     }
+
+    #[cfg(test)]
+    pub fn new_for_test(
+        feed_dir: PathBuf,
+        work_dir: PathBuf,
+        rebuild_on_start: bool,
+        formats: HashMap<String, ReportFormat>,
+    ) -> Self {
+        Self {
+            feed_dir,
+            work_dir,
+            rebuild_on_start,
+            formats,
+        }
+    }
 }
 
 #[cfg(test)]

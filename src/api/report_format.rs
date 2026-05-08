@@ -121,3 +121,7 @@ pub async fn sync_report_formats(
         count: cache.list().len(),
     }))
 }
+
+#[cfg(test)]
+#[path = "report_format_tests.rs"]
+mod report_format_tests;

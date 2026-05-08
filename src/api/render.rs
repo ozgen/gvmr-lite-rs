@@ -12,7 +12,6 @@ use crate::{
     api::{dto::render::RenderRequest, error::ApiError},
     app::state::AppState,
     auth::{context::AuthContext, scope::require_scope},
-    service::json_report_renderer::JsonReportRenderer,
 };
 
 #[utoipa::path(
@@ -25,6 +24,7 @@ use crate::{
         (status = 401, description = "Unauthorized"),
         (status = 403, description = "Forbidden"),
         (status = 404, description = "Report format not found"),
+        (status = 422, description = "Validation failed"),
         (status = 500, description = "Render failed")
     )
 )]
@@ -47,6 +47,8 @@ pub async fn render(
         )
     })?;
 
+    let report_json = req.report_json_value();
+
     let cache = state.format_cache.read().await;
 
     let Some(fmt) = cache.get(&req.format_id) else {
@@ -56,11 +58,11 @@ pub async fn render(
         ));
     };
 
-    let renderer = JsonReportRenderer;
-    let result = renderer
+    let result = state
+        .renderer
         .render(
             fmt,
-            &req.report_json_value(),
+            &report_json,
             &req.params,
             req.timeout_seconds,
             req.output_name.as_deref(),
@@ -70,7 +72,7 @@ pub async fn render(
 
     let content_disposition = format!("attachment; filename=\"{}\"", result.filename);
 
-    let response = Response::builder()
+    Response::builder()
         .status(StatusCode::OK)
         .header(CONTENT_TYPE, result.content_type)
         .header(
@@ -80,7 +82,9 @@ pub async fn render(
             })?,
         )
         .body(Body::from(result.content))
-        .map_err(|err| ApiError::internal(format!("Failed to build response: {err}")))?;
-
-    Ok(response)
+        .map_err(|err| ApiError::internal(format!("Failed to build response: {err}")))
 }
+
+#[cfg(test)]
+#[path = "render_tests.rs"]
+mod render_tests;

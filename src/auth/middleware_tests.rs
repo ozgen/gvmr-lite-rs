@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use super::*;
 
 use axum::{
@@ -13,7 +11,6 @@ use axum::{
 use jsonwebtoken::{EncodingKey, Header, encode};
 use serde::Serialize;
 use serde_json::json;
-use tokio::sync::RwLock;
 use tower::util::ServiceExt;
 
 use crate::{
@@ -60,14 +57,11 @@ fn test_settings(auth_mode: AuthMode) -> Settings {
 fn test_app(settings: Settings) -> Router {
     let format_cache = FormatCache::new(
         settings.report_formats_feed_dir.clone(),
-        settings.work_dir.clone(),
+        settings.report_formats_work_dir(),
         settings.rebuild_on_start,
     );
 
-    let state = AppState {
-        settings,
-        format_cache: Arc::new(RwLock::new(format_cache)),
-    };
+    let state = AppState::new(settings, format_cache);
 
     Router::new()
         .route("/protected", get(protected_handler))

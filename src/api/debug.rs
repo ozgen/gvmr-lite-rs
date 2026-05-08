@@ -18,3 +18,7 @@ pub async fn sync_ping(
 
     Ok("sync ok")
 }
+
+#[cfg(test)]
+#[path = "debug_tests.rs"]
+mod debug_tests;

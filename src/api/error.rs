@@ -58,3 +58,7 @@ impl IntoResponse for ApiError {
         (self.status, body).into_response()
     }
 }
+
+#[cfg(test)]
+#[path = "error_tests.rs"]
+mod error_tests;

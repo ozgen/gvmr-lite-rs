@@ -40,3 +40,7 @@ pub async fn ready(State(state): State<AppState>) -> Json<ReadyResponse> {
         formats_count,
     ))
 }
+
+#[cfg(test)]
+#[path = "health_tests.rs"]
+mod health_tests;

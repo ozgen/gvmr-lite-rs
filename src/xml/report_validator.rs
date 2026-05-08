@@ -1,5 +1,7 @@
-use quick_xml::{Reader, events::Event};
+use quick_xml::{Reader, de::from_str, events::Event};
 use thiserror::Error;
+
+use crate::domain::report_model::ReportEnvelope;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ReportXmlValidationError {
@@ -14,9 +16,38 @@ pub enum ReportXmlValidationError {
 
     #[error("invalid XML: {0}")]
     InvalidXml(String),
+
+    #[error("invalid report structure: {0}")]
+    InvalidStructure(String),
 }
 
 pub fn validate_report_xml(report_xml: &str) -> Result<(), ReportXmlValidationError> {
+    validate_report_root(report_xml)?;
+
+    let envelope: ReportEnvelope = from_str(report_xml)
+        .map_err(|err| ReportXmlValidationError::InvalidXml(err.to_string()))?;
+
+    validate_report_envelope(&envelope)
+}
+
+fn validate_report_envelope(envelope: &ReportEnvelope) -> Result<(), ReportXmlValidationError> {
+    if envelope
+        .report
+        .id
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .is_empty()
+    {
+        return Err(ReportXmlValidationError::InvalidStructure(
+            "inner report id is missing".to_string(),
+        ));
+    }
+
+    Ok(())
+}
+
+fn validate_report_root(report_xml: &str) -> Result<(), ReportXmlValidationError> {
     let mut reader = Reader::from_str(report_xml);
     reader.config_mut().trim_text(false);
 

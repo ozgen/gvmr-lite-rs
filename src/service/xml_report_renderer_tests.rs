@@ -32,6 +32,37 @@ async fn render_report_xml_returns_error_for_invalid_xml() {
 }
 
 #[tokio::test]
+async fn render_report_xml_returns_error_for_report_without_inner_report() {
+    let workdir = temp_test_dir("xml-render-missing-inner-report");
+
+    fs::write(
+        workdir.join("generate"),
+        b"#!/bin/sh\nprintf 'should not run'\n",
+    )
+    .unwrap();
+
+    make_executable_best_effort(&workdir.join("generate"));
+
+    let fmt = test_format(workdir.clone(), "xml", "application/xml");
+    let renderer = XmlReportRenderer;
+
+    let err = renderer
+        .render_report_xml(
+            &fmt,
+            r#"<report id="outer-report"></report>"#,
+            &serde_json::Map::new(),
+            5,
+            None,
+        )
+        .await
+        .unwrap_err();
+
+    assert!(matches!(err, RenderError::InvalidXml(_)));
+
+    let _ = fs::remove_dir_all(workdir);
+}
+
+#[tokio::test]
 async fn render_report_xml_returns_stdout_content() {
     let workdir = temp_test_dir("xml-render-stdout");
 
@@ -49,7 +80,7 @@ async fn render_report_xml_returns_stdout_content() {
     let result = renderer
         .render_report_xml(
             &fmt,
-            r#"<report id="123"></report>"#,
+            valid_report_xml(),
             &serde_json::Map::new(),
             5,
             Some("custom.xml"),
@@ -75,7 +106,7 @@ async fn render_report_xml_passes_raw_xml_to_generate_script() {
     let fmt = test_format(workdir.clone(), "xml", "application/xml");
     let renderer = XmlReportRenderer;
 
-    let report_xml = r#"<report id="abc"><result>hello</result></report>"#;
+    let report_xml = valid_report_xml_with_result();
 
     let result = renderer
         .render_report_xml(&fmt, report_xml, &serde_json::Map::new(), 5, None)
@@ -110,7 +141,7 @@ async fn render_report_xml_forwards_params_as_environment_variables() {
     ]);
 
     let result = renderer
-        .render_report_xml(&fmt, "<report></report>", &params, 5, None)
+        .render_report_xml(&fmt, valid_report_xml(), &params, 5, None)
         .await
         .unwrap();
 
@@ -137,7 +168,7 @@ async fn render_report_xml_reads_output_file_when_stdout_is_empty() {
     let renderer = XmlReportRenderer;
 
     let result = renderer
-        .render_report_xml(&fmt, "<report></report>", &serde_json::Map::new(), 5, None)
+        .render_report_xml(&fmt, valid_report_xml(), &serde_json::Map::new(), 5, None)
         .await
         .unwrap();
 
@@ -156,7 +187,7 @@ async fn render_report_xml_returns_generate_missing_error() {
     let renderer = XmlReportRenderer;
 
     let err = renderer
-        .render_report_xml(&fmt, "<report></report>", &serde_json::Map::new(), 5, None)
+        .render_report_xml(&fmt, valid_report_xml(), &serde_json::Map::new(), 5, None)
         .await
         .unwrap_err();
 
@@ -177,13 +208,27 @@ async fn render_report_xml_returns_no_output_error_when_command_produces_nothing
     let renderer = XmlReportRenderer;
 
     let err = renderer
-        .render_report_xml(&fmt, "<report></report>", &serde_json::Map::new(), 5, None)
+        .render_report_xml(&fmt, valid_report_xml(), &serde_json::Map::new(), 5, None)
         .await
         .unwrap_err();
 
     assert!(matches!(err, RenderError::NoOutput { .. }));
 
     let _ = fs::remove_dir_all(workdir);
+}
+
+fn valid_report_xml() -> &'static str {
+    r#"<report id="outer-report" content_type="application/xml" extension="xml">
+    <report id="inner-report">
+        <scan_run_status>Done</scan_run_status>
+        <results>
+        </results>
+    </report>
+</report>"#
+}
+
+fn valid_report_xml_with_result() -> &'static str {
+    r#"<report id="outer-report" content_type="application/xml" extension="xml"><report id="inner-report"><results><result id="result-1"><name>hello</name><host>127.0.0.1</host></result></results></report></report>"#
 }
 
 fn temp_test_dir(name: &str) -> PathBuf {

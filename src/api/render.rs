@@ -9,9 +9,13 @@ use axum::{
 };
 
 use crate::{
-    api::{dto::render::RenderRequest, error::ApiError},
+    api::{
+        dto::{render::RenderRequest, render_xml::RenderXmlRequest},
+        error::ApiError,
+    },
     app::state::AppState,
     auth::{context::AuthContext, scope::require_scope},
+    service::report_renderer::RenderResult,
 };
 
 #[utoipa::path(
@@ -70,6 +74,67 @@ pub async fn render(
         .await
         .map_err(|err| ApiError::internal(format!("Render failed: {err}")))?;
 
+    build_render_response(result)
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/render/xml",
+    tag = "render",
+    request_body = RenderXmlRequest,
+    responses(
+        (status = 200, description = "Rendered XML report"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden"),
+        (status = 404, description = "Report format not found"),
+        (status = 422, description = "Validation failed"),
+        (status = 500, description = "Render failed")
+    )
+)]
+pub async fn render_xml(
+    State(state): State<AppState>,
+    ctx: AuthContext,
+    Json(req): Json<RenderXmlRequest>,
+) -> Result<Response<Body>, ApiError> {
+    require_scope(
+        &ctx,
+        &state.settings.auth_mode,
+        &state.settings.required_scope_render,
+    )?;
+
+    req.validate().map_err(|message| {
+        ApiError::new(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "validation_error",
+            message,
+        )
+    })?;
+
+    let cache = state.format_cache.read().await;
+
+    let Some(fmt) = cache.get(&req.format_id) else {
+        return Err(ApiError::not_found(
+            "report_format_not_found",
+            format!("Report format not found: {}", req.format_id),
+        ));
+    };
+
+    let result = state
+        .xml_renderer
+        .render_report_xml(
+            fmt,
+            &req.report_xml,
+            &req.params,
+            req.timeout_seconds,
+            req.output_name.as_deref(),
+        )
+        .await
+        .map_err(|err| ApiError::internal(format!("Render failed: {err}")))?;
+
+    build_render_response(result)
+}
+
+fn build_render_response(result: RenderResult) -> Result<Response<Body>, ApiError> {
     let content_disposition = format!("attachment; filename=\"{}\"", result.filename);
 
     Response::builder()

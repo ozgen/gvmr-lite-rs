@@ -44,3 +44,7 @@ impl ReadyResponse {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "health_tests.rs"]
+mod health_tests;

@@ -50,3 +50,7 @@ impl From<&ReportFormat> for ReportFormatResponse {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "report_format_tests.rs"]
+mod report_format_tests;

@@ -430,3 +430,7 @@ impl RenderRequest {
 fn default_timeout_seconds() -> u64 {
     300
 }
+
+#[cfg(test)]
+#[path = "render_tests.rs"]
+mod render_tests;

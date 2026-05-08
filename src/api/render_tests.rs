@@ -1,5 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
+    fs,
     path::PathBuf,
     sync::{
         Arc, Mutex,
@@ -22,17 +23,20 @@ use serde_json::{Map, Value};
 
 use crate::{
     api::{
-        dto::render::{RenderRequest, ReportJson},
-        render::render,
+        dto::{
+            render::{RenderRequest, ReportJson},
+            render_xml::RenderXmlRequest,
+        },
+        render::{render, render_xml},
     },
     app::state::AppState,
     auth::context::AuthContext,
     config::settings::{AuthMode, Settings},
     domain::report_format::{ReportFormat, ReportFormatFile},
+    infra::fs::make_executable_best_effort,
     service::{
         format_cache::FormatCache,
-        json_report_renderer::{RenderError, RenderResult},
-        report_renderer::ReportRenderer,
+        report_renderer::{RenderError, RenderResult, ReportRenderer},
     },
 };
 
@@ -244,6 +248,91 @@ async fn response_body_string(response: axum::response::Response) -> String {
     let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
 
     String::from_utf8(bytes.to_vec()).unwrap()
+}
+
+fn render_xml_request(format_id: &str) -> RenderXmlRequest {
+    RenderXmlRequest {
+        format_id: format_id.to_string(),
+        report_xml: valid_report_xml().to_string(),
+        params: Map::new(),
+        output_name: None,
+        timeout_seconds: 300,
+    }
+}
+
+fn render_xml_request_with_options(format_id: &str) -> RenderXmlRequest {
+    let mut params = Map::new();
+    params.insert(
+        "timezone".to_string(),
+        Value::String("Europe/Berlin".to_string()),
+    );
+    params.insert("debug".to_string(), Value::Bool(true));
+
+    RenderXmlRequest {
+        format_id: format_id.to_string(),
+        report_xml: valid_report_xml().to_string(),
+        params,
+        output_name: Some("custom-report.xml".to_string()),
+        timeout_seconds: 42,
+    }
+}
+
+fn valid_report_xml() -> &'static str {
+    r#"<report id="outer-report" content_type="application/xml" extension="xml"><report id="inner-report"><scan_run_status>Done</scan_run_status><results></results></report></report>"#
+}
+
+fn xml_format_with_generate(script: &[u8]) -> ReportFormat {
+    let workdir = temp_test_dir("xml-endpoint-format");
+
+    fs::write(workdir.join("generate"), script).unwrap();
+    make_executable_best_effort(&workdir.join("generate"));
+
+    ReportFormat::new(
+        "xml-format-1".to_string(),
+        "XML Report".to_string(),
+        "xml".to_string(),
+        "application/xml".to_string(),
+        workdir.clone(),
+        vec![ReportFormatFile::new(
+            "generate".to_string(),
+            workdir.join("generate"),
+        )],
+    )
+}
+
+fn text_format_with_generate(script: &[u8]) -> ReportFormat {
+    let workdir = temp_test_dir("xml-endpoint-text-format");
+
+    fs::write(workdir.join("generate"), script).unwrap();
+    make_executable_best_effort(&workdir.join("generate"));
+
+    ReportFormat::new(
+        "text-format-1".to_string(),
+        "Text Report".to_string(),
+        "txt".to_string(),
+        "text/plain".to_string(),
+        workdir.clone(),
+        vec![ReportFormatFile::new(
+            "generate".to_string(),
+            workdir.join("generate"),
+        )],
+    )
+}
+
+fn temp_test_dir(name: &str) -> PathBuf {
+    let unique = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+
+    let dir = std::env::temp_dir().join(format!(
+        "gvmr-lite-rs-{name}-{}-{unique}",
+        std::process::id()
+    ));
+
+    fs::create_dir_all(&dir).unwrap();
+
+    dir
 }
 
 #[tokio::test]
@@ -472,6 +561,280 @@ async fn render_allows_access_when_auth_mode_is_none() {
         State(state),
         AuthContext::default(),
         Json(render_request("format-1")),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn render_xml_returns_ok_response_with_headers_and_body() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let format = xml_format_with_generate(b"#!/bin/sh\nprintf 'hello from xml endpoint'\n");
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer);
+
+    let response = render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(render_xml_request("xml-format-1")),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    assert_eq!(
+        response.headers().get(CONTENT_TYPE).unwrap(),
+        "application/xml"
+    );
+
+    assert_eq!(
+        response.headers().get(CONTENT_DISPOSITION).unwrap(),
+        "attachment; filename=\"report.xml\""
+    );
+
+    let body = response_body_string(response).await;
+
+    assert_eq!(body, "hello from xml endpoint");
+}
+
+#[tokio::test]
+async fn render_xml_uses_requested_output_name_in_content_disposition_header() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let format = xml_format_with_generate(b"#!/bin/sh\nprintf 'hello'\n");
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer);
+
+    let response = render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(render_xml_request_with_options("xml-format-1")),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    assert_eq!(
+        response.headers().get(CONTENT_DISPOSITION).unwrap(),
+        "attachment; filename=\"custom-report.xml\""
+    );
+}
+
+#[tokio::test]
+async fn render_xml_passes_raw_xml_to_generate_script() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let format = xml_format_with_generate(b"#!/bin/sh\ncat report.xml\n");
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer);
+
+    let request = RenderXmlRequest {
+        format_id: "xml-format-1".to_string(),
+        report_xml: valid_report_xml().to_string(),
+        params: Map::new(),
+        output_name: None,
+        timeout_seconds: 300,
+    };
+
+    let response = render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(request),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = response_body_string(response).await;
+
+    assert_eq!(body, valid_report_xml());
+}
+
+#[tokio::test]
+async fn render_xml_forwards_params_to_generate_script() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let format = text_format_with_generate(
+        b"#!/bin/sh\nprintf \"%s:%s\" \"$GVMR_PARAM_TIMEZONE\" \"$GVMR_PARAM_DEBUG\"\n",
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer);
+
+    let response = render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(render_xml_request_with_options("text-format-1")),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    assert_eq!(response.headers().get(CONTENT_TYPE).unwrap(), "text/plain");
+
+    assert_eq!(
+        response.headers().get(CONTENT_DISPOSITION).unwrap(),
+        "attachment; filename=\"custom-report.xml\""
+    );
+
+    let body = response_body_string(response).await;
+
+    assert_eq!(body, "Europe/Berlin:true");
+}
+
+#[tokio::test]
+async fn render_xml_returns_forbidden_when_render_scope_is_missing() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let format = xml_format_with_generate(b"#!/bin/sh\nprintf 'should not run'\n");
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer);
+
+    let response = match render_xml(
+        State(state),
+        auth_context_without_render_scope(),
+        Json(render_xml_request("xml-format-1")),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected forbidden error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn render_xml_returns_unprocessable_entity_when_timeout_is_invalid() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let format = xml_format_with_generate(b"#!/bin/sh\nprintf 'should not run'\n");
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer);
+
+    let mut request = render_xml_request("xml-format-1");
+    request.timeout_seconds = 0;
+
+    let response = match render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(request),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected validation error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+#[tokio::test]
+async fn render_xml_returns_not_found_when_report_format_is_missing() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let state = test_state(AuthMode::Jwt, "render", vec![], renderer);
+
+    let response = match render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(render_xml_request("missing-format")),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected not found error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn render_xml_returns_internal_server_error_when_xml_is_invalid() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let format = xml_format_with_generate(b"#!/bin/sh\nprintf 'should not run'\n");
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer);
+
+    let mut request = render_xml_request("xml-format-1");
+    request.report_xml = "<foo></foo>".to_string();
+
+    let response = match render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(request),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected invalid XML error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+
+    let body = response_body_string(response).await;
+
+    assert!(body.contains("Render failed"));
+    assert!(body.contains("invalid report XML"));
+}
+
+#[tokio::test]
+async fn render_xml_returns_internal_server_error_when_generate_script_is_missing() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let workdir = temp_test_dir("xml-endpoint-missing-generate");
+
+    let format = ReportFormat::new(
+        "xml-format-1".to_string(),
+        "XML Report".to_string(),
+        "xml".to_string(),
+        "application/xml".to_string(),
+        workdir.clone(),
+        vec![],
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer);
+
+    let response = match render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(render_xml_request("xml-format-1")),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected render failure"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+
+    let body = response_body_string(response).await;
+
+    assert!(body.contains("Render failed"));
+    assert!(body.contains("generate script not found"));
+
+    let _ = fs::remove_dir_all(workdir);
+}
+
+#[tokio::test]
+async fn render_xml_allows_access_when_auth_mode_is_none() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let format = xml_format_with_generate(b"#!/bin/sh\nprintf 'hello'\n");
+
+    let state = test_state(AuthMode::None, "render", vec![format], renderer);
+
+    let response = render_xml(
+        State(state),
+        AuthContext::default(),
+        Json(render_xml_request("xml-format-1")),
     )
     .await
     .unwrap();

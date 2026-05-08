@@ -6,7 +6,7 @@ use crate::{
     config::settings::Settings,
     service::{
         format_cache::FormatCache, json_report_renderer::JsonReportRenderer,
-        report_renderer::ReportRenderer,
+        report_renderer::ReportRenderer, xml_report_renderer::XmlReportRenderer,
     },
 };
 
@@ -15,6 +15,7 @@ pub struct AppState {
     pub settings: Settings,
     pub format_cache: Arc<RwLock<FormatCache>>,
     pub renderer: Arc<dyn ReportRenderer>,
+    pub xml_renderer: XmlReportRenderer,
 }
 
 impl AppState {
@@ -23,6 +24,7 @@ impl AppState {
             settings,
             format_cache: Arc::new(RwLock::new(format_cache)),
             renderer: Arc::new(JsonReportRenderer),
+            xml_renderer: XmlReportRenderer,
         }
     }
 
@@ -36,6 +38,7 @@ impl AppState {
             settings,
             format_cache: Arc::new(RwLock::new(format_cache)),
             renderer,
+            xml_renderer: XmlReportRenderer,
         }
     }
 }
@@ -47,6 +50,7 @@ impl std::fmt::Debug for AppState {
             .field("settings", &self.settings)
             .field("format_cache", &self.format_cache)
             .field("renderer", &"<dyn ReportRenderer>")
+            .field("xml_renderer", &"<XmlReportRenderer>")
             .finish()
     }
 }

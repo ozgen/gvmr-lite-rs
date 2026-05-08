@@ -31,8 +31,7 @@ use crate::{
     domain::report_format::{ReportFormat, ReportFormatFile},
     service::{
         format_cache::FormatCache,
-        json_report_renderer::{RenderError, RenderResult},
-        report_renderer::ReportRenderer,
+        report_renderer::{RenderError, RenderResult, ReportRenderer},
     },
 };
 

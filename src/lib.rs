@@ -71,4 +71,5 @@ pub(crate) async fn bind_listener(port: u16) -> Result<TcpListener, AppError> {
 }
 
 #[cfg(test)]
+#[path = "lib_tests.rs"]
 mod lib_tests;

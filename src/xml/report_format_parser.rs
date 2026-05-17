@@ -2,7 +2,7 @@ use std::{fs, path::Path};
 
 use base64::{Engine, engine::general_purpose};
 use quick_xml::{
-    Reader,
+    Reader, XmlVersion,
     encoding::EncodingError,
     events::{BytesEnd, BytesStart, BytesText, Event},
 };
@@ -189,7 +189,8 @@ fn read_optional_attr(
 ) -> Result<Option<String>, ReportFormatParseError> {
     for attr in event.attributes().flatten() {
         if attr.key.as_ref() == attr_name {
-            let value = attr.decode_and_unescape_value(reader.decoder())?;
+            let value =
+                attr.decoded_and_normalized_value(XmlVersion::Explicit1_1, reader.decoder())?;
             return Ok(Some(value.to_string()));
         }
     }

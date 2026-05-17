@@ -2,11 +2,11 @@
 set -euo pipefail
 
 BASE_URL="${BASE_URL:-http://localhost:8084}"
-FORMAT_ID="${FORMAT_ID:-c402cc3e-b531-11e1-9163-406186ea4fc5}"
-REPORT_XML_FILE="${REPORT_XML_FILE:-report.xml}"
+FORMAT_ID="${FORMAT_ID:-a9063afd-313e-434e-9008-9dfe3a22e010}"
+REPORT_XML_FILE="${REPORT_XML_FILE:-report-container.xml}"
 OUTPUT_FILE="${OUTPUT_FILE:-rendered-report.pdf}"
 HEADERS_FILE="${HEADERS_FILE:-rendered-report-headers.txt}"
-TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-300}"
+TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-1200}"
 OUTPUT_NAME="${OUTPUT_NAME:-report.xml}"
 
 API_KEY="${API_KEY:-}"
@@ -43,6 +43,9 @@ fi
 
 BODY_FILE="$(mktemp)"
 trap 'rm -f "$BODY_FILE"' EXIT
+
+echo "Render started at: $(date)"
+
 
 jq -n \
   --rawfile report_xml "$REPORT_XML_FILE" \
@@ -88,4 +91,5 @@ if [[ "$STATUS_CODE" != "200" ]]; then
 fi
 
 echo
+echo "Render finished at: $(date)"
 echo "Success."

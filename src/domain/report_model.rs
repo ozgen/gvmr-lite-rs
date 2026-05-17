@@ -151,6 +151,7 @@ pub struct Task {
     pub comment: Option<String>,
     pub target: Option<TaskTarget>,
     pub agent_group: Option<AgentGroup>,
+    pub oci_image_target: Option<OciImageTarget>,
     pub progress: Option<String>,
 }
 
@@ -166,6 +167,16 @@ pub struct TaskTarget {
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
 pub struct AgentGroup {
+    #[serde(rename = "@id")]
+    pub id: Option<String>,
+
+    pub trash: Option<String>,
+    pub name: Option<String>,
+    pub comment: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
+pub struct OciImageTarget {
     #[serde(rename = "@id")]
     pub id: Option<String>,
 

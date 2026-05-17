@@ -8,14 +8,24 @@ use axum::{
     },
 };
 
+use tokio::task;
+
 use crate::{
     api::{
-        dto::{render::RenderRequest, render_xml::RenderXmlRequest},
+        dto::{
+            render::RenderRequest, render_xml::RenderXmlRequest,
+            report_json_converter::report_json_to_envelope,
+        },
         error::ApiError,
     },
     app::state::AppState,
     auth::{context::AuthContext, scope::require_scope},
+    domain::{
+        report_format::{RendererBackend, ReportFormat},
+        report_model::ReportEnvelope,
+    },
     service::report_renderer::RenderResult,
+    xml::report_validator::parse_report_xml,
 };
 
 #[utoipa::path(
@@ -51,28 +61,39 @@ pub async fn render(
         )
     })?;
 
-    let report_json = req.report_json_value();
+    let fmt = get_report_format(&state, &req.format_id).await?;
 
-    let cache = state.format_cache.read().await;
+    log_report_format(&fmt);
 
-    let Some(fmt) = cache.get(&req.format_id) else {
-        return Err(ApiError::not_found(
-            "report_format_not_found",
-            format!("Report format not found: {}", req.format_id),
-        ));
+    let result = match fmt.backend {
+        RendererBackend::FeedPipeline => {
+            let report_json = req.report_json_value();
+
+            state
+                .renderer
+                .render(
+                    &fmt,
+                    &report_json,
+                    &req.params,
+                    req.timeout_seconds,
+                    req.output_name.as_deref(),
+                )
+                .await
+                .map_err(|err| ApiError::internal(format!("Render failed: {err}")))?
+        }
+
+        RendererBackend::Typst => {
+            let report = report_json_to_envelope(&req.report_json);
+
+            render_typst_report(state, fmt, report, req.output_name).await?
+        }
+
+        RendererBackend::NativePdf => {
+            let report = report_json_to_envelope(&req.report_json);
+
+            render_native_pdf_report(state, fmt, report, req.output_name).await?
+        }
     };
-
-    let result = state
-        .renderer
-        .render(
-            fmt,
-            &report_json,
-            &req.params,
-            req.timeout_seconds,
-            req.output_name.as_deref(),
-        )
-        .await
-        .map_err(|err| ApiError::internal(format!("Render failed: {err}")))?;
 
     build_render_response(result)
 }
@@ -110,28 +131,148 @@ pub async fn render_xml(
         )
     })?;
 
+    let fmt = get_report_format(&state, &req.format_id).await?;
+
+    log_report_format(&fmt);
+
+    let result = match fmt.backend {
+        RendererBackend::FeedPipeline => state
+            .xml_renderer
+            .render_report_xml(
+                &fmt,
+                &req.report_xml,
+                &req.params,
+                req.timeout_seconds,
+                req.output_name.as_deref(),
+            )
+            .await
+            .map_err(|err| ApiError::internal(format!("Render failed: {err}")))?,
+
+        RendererBackend::Typst => {
+            let report = parse_report_xml(&req.report_xml).map_err(|err| {
+                ApiError::new(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    "invalid_report_xml",
+                    format!("Report XML does not match ReportEnvelope: {err}"),
+                )
+            })?;
+
+            render_typst_report(state, fmt, report, req.output_name).await?
+        }
+
+        RendererBackend::NativePdf => {
+            let report = parse_report_xml(&req.report_xml).map_err(|err| {
+                ApiError::new(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    "invalid_report_xml",
+                    format!("Report XML does not match ReportEnvelope: {err}"),
+                )
+            })?;
+
+            render_native_pdf_report(state, fmt, report, req.output_name).await?
+        }
+    };
+
+    build_render_response(result)
+}
+
+async fn get_report_format(state: &AppState, format_id: &str) -> Result<ReportFormat, ApiError> {
     let cache = state.format_cache.read().await;
 
-    let Some(fmt) = cache.get(&req.format_id) else {
+    let Some(fmt) = cache.get(format_id) else {
         return Err(ApiError::not_found(
             "report_format_not_found",
-            format!("Report format not found: {}", req.format_id),
+            format!("Report format not found: {format_id}"),
         ));
     };
 
-    let result = state
-        .xml_renderer
-        .render_report_xml(
-            fmt,
-            &req.report_xml,
-            &req.params,
-            req.timeout_seconds,
-            req.output_name.as_deref(),
-        )
-        .await
-        .map_err(|err| ApiError::internal(format!("Render failed: {err}")))?;
+    Ok(fmt.clone())
+}
 
-    build_render_response(result)
+fn log_report_format(fmt: &ReportFormat) {
+    tracing::debug!(
+        format_id = %fmt.id,
+        format_name = %fmt.name,
+        extension = %fmt.extension,
+        content_type = %fmt.content_type,
+        backend = ?fmt.backend,
+        source = ?fmt.source,
+        workdir = %fmt.workdir.display(),
+        files_count = fmt.files.len(),
+        "retrieved report format from cache"
+    );
+}
+
+async fn render_native_pdf_report(
+    state: AppState,
+    fmt: ReportFormat,
+    report: ReportEnvelope,
+    output_name: Option<String>,
+) -> Result<RenderResult, ApiError> {
+    let renderer = state.native_pdf_renderer.clone();
+    let filename = output_filename(output_name, &fmt, "native-technical-report");
+
+    let content = task::spawn_blocking(move || renderer.render(&report))
+        .await
+        .map_err(|err| {
+            tracing::error!(error = %err, "Native PDF render task failed");
+            ApiError::internal(format!("Native PDF render task failed: {err}"))
+        })?
+        .map_err(|err| {
+            tracing::error!(error = %err, "Native PDF render failed");
+            ApiError::internal(format!("Native PDF render failed: {err}"))
+        })?;
+
+    Ok(RenderResult {
+        content,
+        content_type: fmt.content_type,
+        filename,
+    })
+}
+
+async fn render_typst_report(
+    state: AppState,
+    fmt: ReportFormat,
+    report: ReportEnvelope,
+    output_name: Option<String>,
+) -> Result<RenderResult, ApiError> {
+    let renderer = state.typst_report_renderer.clone();
+    let filename = output_filename(output_name, &fmt, "technical-chunked-report");
+    tracing::info!(
+        filtered = ?report.report.result_count.as_ref().and_then(|c| c.filtered.as_deref()),
+        full = ?report.report.result_count.as_ref().and_then(|c| c.full.as_deref()),
+        parsed_results = report.report.results.as_ref().map(|r| r.result.len()).unwrap_or(0),
+        "Typst report input"
+    );
+
+    let content = task::spawn_blocking(move || renderer.render(&report))
+        .await
+        .map_err(|err| {
+            tracing::error!(error = %err, "Typst render task failed");
+            ApiError::internal(format!("Typst render task failed: {err}"))
+        })?
+        .map_err(|err| {
+            tracing::error!(error = %err, "Typst render failed");
+            ApiError::internal(format!("Typst render failed: {err}"))
+        })?;
+
+    Ok(RenderResult {
+        content,
+        content_type: fmt.content_type,
+        filename,
+    })
+}
+
+fn output_filename(output_name: Option<String>, fmt: &ReportFormat, default_stem: &str) -> String {
+    output_name.unwrap_or_else(|| {
+        let extension = fmt.extension.trim();
+
+        if extension.is_empty() {
+            default_stem.to_string()
+        } else {
+            format!("{default_stem}.{extension}")
+        }
+    })
 }
 
 fn build_render_response(result: RenderResult) -> Result<Response<Body>, ApiError> {

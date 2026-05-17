@@ -1,3 +1,5 @@
+use super::{build_render_response, output_filename};
+
 use std::{
     collections::{HashMap, HashSet},
     fs,
@@ -32,7 +34,10 @@ use crate::{
     app::state::AppState,
     auth::context::AuthContext,
     config::settings::{AuthMode, Settings},
-    domain::report_format::{ReportFormat, ReportFormatFile},
+    domain::{
+        report_format::{ReportFormat, ReportFormatFile},
+        report_format_constants::{BUILT_IN_NATIVE_PDF_TECHNICAL_ID, BUILT_IN_TYPST_TECHNICAL_ID},
+    },
     infra::fs::make_executable_best_effort,
     service::{
         format_cache::FormatCache,
@@ -149,6 +154,7 @@ fn test_settings(
 
         log_level: "info".to_string(),
         log_format: "pretty".to_string(),
+        experimental_enabled: false,
     }
 }
 
@@ -171,7 +177,7 @@ fn auth_context_without_render_scope() -> AuthContext {
 fn report_format(id: &str, name: &str, extension: &str, content_type: &str) -> ReportFormat {
     let workdir = PathBuf::from(format!("/tmp/work/report-formats/{id}"));
 
-    ReportFormat::new(
+    ReportFormat::feed(
         id.to_string(),
         name.to_string(),
         extension.to_string(),
@@ -287,7 +293,7 @@ fn xml_format_with_generate(script: &[u8]) -> ReportFormat {
     fs::write(workdir.join("generate"), script).unwrap();
     make_executable_best_effort(&workdir.join("generate"));
 
-    ReportFormat::new(
+    ReportFormat::feed(
         "xml-format-1".to_string(),
         "XML Report".to_string(),
         "xml".to_string(),
@@ -306,7 +312,7 @@ fn text_format_with_generate(script: &[u8]) -> ReportFormat {
     fs::write(workdir.join("generate"), script).unwrap();
     make_executable_best_effort(&workdir.join("generate"));
 
-    ReportFormat::new(
+    ReportFormat::feed(
         "text-format-1".to_string(),
         "Text Report".to_string(),
         "txt".to_string(),
@@ -791,7 +797,7 @@ async fn render_xml_returns_internal_server_error_when_generate_script_is_missin
 
     let workdir = temp_test_dir("xml-endpoint-missing-generate");
 
-    let format = ReportFormat::new(
+    let format = ReportFormat::feed(
         "xml-format-1".to_string(),
         "XML Report".to_string(),
         "xml".to_string(),
@@ -840,4 +846,989 @@ async fn render_xml_allows_access_when_auth_mode_is_none() {
     .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[test]
+fn output_filename_uses_explicit_output_name_when_present() {
+    let format = report_format("format-1", "JSON Report", "json", "application/json");
+
+    let filename = output_filename(
+        Some("custom-name.pdf".to_string()),
+        &format,
+        "default-report",
+    );
+
+    assert_eq!(filename, "custom-name.pdf");
+}
+
+#[test]
+fn output_filename_uses_default_stem_and_format_extension() {
+    let format = report_format("format-1", "JSON Report", "json", "application/json");
+
+    let filename = output_filename(None, &format, "default-report");
+
+    assert_eq!(filename, "default-report.json");
+}
+
+#[test]
+fn output_filename_trims_format_extension() {
+    let format = report_format("format-1", "Text Report", "  txt  ", "text/plain");
+
+    let filename = output_filename(None, &format, "default-report");
+
+    assert_eq!(filename, "default-report.txt");
+}
+
+#[test]
+fn output_filename_uses_default_stem_when_format_extension_is_empty() {
+    let format = report_format("format-1", "No Extension Report", "", "text/plain");
+
+    let filename = output_filename(None, &format, "default-report");
+
+    assert_eq!(filename, "default-report");
+}
+
+#[tokio::test]
+async fn build_render_response_returns_ok_response_with_expected_headers_and_body() {
+    let result = RenderResult {
+        filename: "report.txt".to_string(),
+        content_type: "text/plain".to_string(),
+        content: b"hello".to_vec(),
+    };
+
+    let response = build_render_response(result).unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.headers().get(CONTENT_TYPE).unwrap(), "text/plain");
+    assert_eq!(
+        response.headers().get(CONTENT_DISPOSITION).unwrap(),
+        "attachment; filename=\"report.txt\""
+    );
+
+    let body = response_body_string(response).await;
+
+    assert_eq!(body, "hello");
+}
+
+#[test]
+fn build_render_response_rejects_invalid_content_disposition_filename() {
+    let result = RenderResult {
+        filename: "bad\nfilename.txt".to_string(),
+        content_type: "text/plain".to_string(),
+        content: b"hello".to_vec(),
+    };
+
+    let error = build_render_response(result).unwrap_err();
+    let response = error.into_response();
+
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+}
+
+#[test]
+fn build_render_response_rejects_invalid_content_type_header() {
+    let result = RenderResult {
+        filename: "report.txt".to_string(),
+        content_type: "text/plain\nbad".to_string(),
+        content: b"hello".to_vec(),
+    };
+
+    let error = build_render_response(result).unwrap_err();
+    let response = error.into_response();
+
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+}
+
+#[tokio::test]
+async fn render_allows_jwt_access_when_required_render_scope_is_empty() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let state = test_state(AuthMode::Jwt, "", vec![json_format()], renderer.clone());
+
+    let response = render(
+        State(state),
+        auth_context_without_render_scope(),
+        Json(render_request("format-1")),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(renderer.calls_count(), 1);
+}
+
+#[tokio::test]
+async fn render_xml_allows_jwt_access_when_required_render_scope_is_empty() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let format = xml_format_with_generate(b"#!/bin/sh\nprintf 'hello'\n");
+
+    let state = test_state(AuthMode::Jwt, "", vec![format], renderer);
+
+    let response = render_xml(
+        State(state),
+        auth_context_without_render_scope(),
+        Json(render_xml_request("xml-format-1")),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn render_xml_does_not_call_json_renderer_for_feed_pipeline_backend() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let format = xml_format_with_generate(b"#!/bin/sh\nprintf 'hello from generate'\n");
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer.clone());
+
+    let response = render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(render_xml_request("xml-format-1")),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(renderer.calls_count(), 0);
+
+    let body = response_body_string(response).await;
+
+    assert_eq!(body, "hello from generate");
+}
+
+#[tokio::test]
+async fn render_xml_returns_unprocessable_entity_for_invalid_typst_report_xml() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let workdir = temp_test_dir("typst-invalid-report-xml");
+
+    let format = ReportFormat::built_in_typst(
+        BUILT_IN_TYPST_TECHNICAL_ID,
+        "Typst Technical Report",
+        "pdf",
+        "application/pdf",
+        workdir.clone(),
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer);
+
+    let mut request = render_xml_request(BUILT_IN_TYPST_TECHNICAL_ID);
+    request.report_xml = "<foo></foo>".to_string();
+
+    let response = match render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(request),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected invalid report XML error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    let body = response_body_string(response).await;
+
+    assert!(body.contains("invalid_report_xml"));
+    assert!(body.contains("Report XML does not match ReportEnvelope"));
+
+    let _ = fs::remove_dir_all(workdir);
+}
+
+#[tokio::test]
+async fn render_xml_returns_unprocessable_entity_for_invalid_native_pdf_report_xml() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let workdir = temp_test_dir("native-pdf-invalid-report-xml");
+
+    let format = ReportFormat::built_in_native_pdf(
+        BUILT_IN_NATIVE_PDF_TECHNICAL_ID,
+        "Native PDF Technical Report",
+        "pdf",
+        "application/pdf",
+        workdir.clone(),
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer);
+
+    let mut request = render_xml_request(BUILT_IN_NATIVE_PDF_TECHNICAL_ID);
+    request.report_xml = "<foo></foo>".to_string();
+
+    let response = match render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(request),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected invalid report XML error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    let body = response_body_string(response).await;
+
+    assert!(body.contains("invalid_report_xml"));
+    assert!(body.contains("Report XML does not match ReportEnvelope"));
+
+    let _ = fs::remove_dir_all(workdir);
+}
+
+#[tokio::test]
+async fn render_typst_returns_forbidden_when_render_scope_is_missing() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let workdir = temp_test_dir("typst-render-missing-scope");
+
+    let format = ReportFormat::built_in_typst(
+        BUILT_IN_TYPST_TECHNICAL_ID,
+        "Typst Technical Report",
+        "pdf",
+        "application/pdf",
+        workdir.clone(),
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer.clone());
+
+    let response = match render(
+        State(state),
+        auth_context_without_render_scope(),
+        Json(render_request(BUILT_IN_TYPST_TECHNICAL_ID)),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected forbidden error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert_eq!(renderer.calls_count(), 0);
+
+    let _ = fs::remove_dir_all(workdir);
+}
+
+#[tokio::test]
+async fn render_xml_typst_returns_forbidden_when_render_scope_is_missing() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let workdir = temp_test_dir("typst-render-xml-missing-scope");
+
+    let format = ReportFormat::built_in_typst(
+        BUILT_IN_TYPST_TECHNICAL_ID,
+        "Typst Technical Report",
+        "pdf",
+        "application/pdf",
+        workdir.clone(),
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer.clone());
+
+    let response = match render_xml(
+        State(state),
+        auth_context_without_render_scope(),
+        Json(render_xml_request(BUILT_IN_TYPST_TECHNICAL_ID)),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected forbidden error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert_eq!(renderer.calls_count(), 0);
+
+    let _ = fs::remove_dir_all(workdir);
+}
+
+#[tokio::test]
+async fn render_typst_returns_unprocessable_entity_when_timeout_is_invalid() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let workdir = temp_test_dir("typst-render-invalid-timeout");
+
+    let format = ReportFormat::built_in_typst(
+        BUILT_IN_TYPST_TECHNICAL_ID,
+        "Typst Technical Report",
+        "pdf",
+        "application/pdf",
+        workdir.clone(),
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer.clone());
+
+    let mut request = render_request(BUILT_IN_TYPST_TECHNICAL_ID);
+    request.timeout_seconds = 0;
+
+    let response = match render(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(request),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected validation error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(renderer.calls_count(), 0);
+
+    let _ = fs::remove_dir_all(workdir);
+}
+
+#[tokio::test]
+async fn render_xml_typst_returns_unprocessable_entity_when_timeout_is_invalid() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let workdir = temp_test_dir("typst-render-xml-invalid-timeout");
+
+    let format = ReportFormat::built_in_typst(
+        BUILT_IN_TYPST_TECHNICAL_ID,
+        "Typst Technical Report",
+        "pdf",
+        "application/pdf",
+        workdir.clone(),
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer.clone());
+
+    let mut request = render_xml_request(BUILT_IN_TYPST_TECHNICAL_ID);
+    request.timeout_seconds = 0;
+
+    let response = match render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(request),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected validation error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(renderer.calls_count(), 0);
+
+    let _ = fs::remove_dir_all(workdir);
+}
+
+#[tokio::test]
+async fn render_typst_returns_not_found_when_format_is_missing() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let state = test_state(AuthMode::Jwt, "render", vec![], renderer.clone());
+
+    let response = match render(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(render_request(BUILT_IN_TYPST_TECHNICAL_ID)),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected not found error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(renderer.calls_count(), 0);
+}
+
+#[tokio::test]
+async fn render_xml_typst_returns_not_found_when_format_is_missing() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let state = test_state(AuthMode::Jwt, "render", vec![], renderer.clone());
+
+    let response = match render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(render_xml_request(BUILT_IN_TYPST_TECHNICAL_ID)),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected not found error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(renderer.calls_count(), 0);
+}
+
+#[tokio::test]
+async fn render_xml_typst_rejects_wrong_root_before_running_renderer() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let workdir = temp_test_dir("typst-render-xml-wrong-root");
+
+    let format = ReportFormat::built_in_typst(
+        BUILT_IN_TYPST_TECHNICAL_ID,
+        "Typst Technical Report",
+        "pdf",
+        "application/pdf",
+        workdir.clone(),
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer.clone());
+
+    let mut request = render_xml_request(BUILT_IN_TYPST_TECHNICAL_ID);
+    request.report_xml = "<foo></foo>".to_string();
+
+    let response = match render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(request),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected invalid report XML error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(renderer.calls_count(), 0);
+
+    let body = response_body_string(response).await;
+
+    assert!(body.contains("invalid_report_xml"));
+    assert!(body.contains("Report XML does not match ReportEnvelope"));
+
+    let _ = fs::remove_dir_all(workdir);
+}
+
+#[tokio::test]
+async fn render_xml_typst_rejects_missing_inner_report_id_before_running_renderer() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let workdir = temp_test_dir("typst-render-xml-missing-inner-id");
+
+    let format = ReportFormat::built_in_typst(
+        BUILT_IN_TYPST_TECHNICAL_ID,
+        "Typst Technical Report",
+        "pdf",
+        "application/pdf",
+        workdir.clone(),
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer.clone());
+
+    let mut request = render_xml_request(BUILT_IN_TYPST_TECHNICAL_ID);
+    request.report_xml = r#"
+        <report id="outer-report">
+            <report>
+                <scan_run_status>Done</scan_run_status>
+                <results></results>
+            </report>
+        </report>
+    "#
+    .to_string();
+
+    let response = match render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(request),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected invalid report XML error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(renderer.calls_count(), 0);
+
+    let body = response_body_string(response).await;
+
+    assert!(body.contains("invalid_report_xml"));
+    assert!(body.contains("inner report id is missing"));
+
+    let _ = fs::remove_dir_all(workdir);
+}
+
+#[tokio::test]
+async fn render_typst_does_not_call_feed_pipeline_renderer() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let workdir = temp_test_dir("typst-render-does-not-call-feed-renderer");
+
+    let format = ReportFormat::built_in_typst(
+        BUILT_IN_TYPST_TECHNICAL_ID,
+        "Typst Technical Report",
+        "pdf",
+        "application/pdf",
+        workdir.clone(),
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer.clone());
+
+    let response = match render(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(render_request(BUILT_IN_TYPST_TECHNICAL_ID)),
+    )
+    .await
+    {
+        Ok(response) => response,
+        Err(error) => error.into_response(),
+    };
+
+    assert_ne!(response.status(), StatusCode::NOT_FOUND);
+    assert_ne!(response.status(), StatusCode::FORBIDDEN);
+    assert_ne!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    assert_eq!(renderer.calls_count(), 0);
+
+    let _ = fs::remove_dir_all(workdir);
+}
+
+#[test]
+fn output_filename_uses_explicit_output_name() {
+    let format = report_format("format-1", "Test Format", "pdf", "application/pdf");
+
+    let filename = output_filename(Some("custom.pdf".to_string()), &format, "fallback");
+
+    assert_eq!(filename, "custom.pdf");
+}
+
+#[test]
+fn output_filename_uses_default_stem_and_extension() {
+    let format = report_format("format-1", "Test Format", "pdf", "application/pdf");
+
+    let filename = output_filename(None, &format, "report");
+
+    assert_eq!(filename, "report.pdf");
+}
+
+#[test]
+fn output_filename_uses_default_stem_when_extension_is_blank() {
+    let format = report_format("format-1", "Test Format", "   ", "application/octet-stream");
+
+    let filename = output_filename(None, &format, "report");
+
+    assert_eq!(filename, "report");
+}
+
+#[tokio::test]
+async fn build_render_response_sets_expected_headers_and_body() {
+    let result = RenderResult {
+        filename: "report.txt".to_string(),
+        content_type: "text/plain".to_string(),
+        content: b"hello".to_vec(),
+    };
+
+    let response = build_render_response(result).unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.headers().get(CONTENT_TYPE).unwrap(), "text/plain");
+    assert_eq!(
+        response.headers().get(CONTENT_DISPOSITION).unwrap(),
+        "attachment; filename=\"report.txt\""
+    );
+
+    let body = response_body_string(response).await;
+
+    assert_eq!(body, "hello");
+}
+
+#[test]
+fn build_render_response_rejects_invalid_content_type() {
+    let result = RenderResult {
+        filename: "report.txt".to_string(),
+        content_type: "text/plain\nbad".to_string(),
+        content: b"hello".to_vec(),
+    };
+
+    let error = build_render_response(result).unwrap_err();
+    let response = error.into_response();
+
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+}
+
+#[tokio::test]
+async fn render_typst_returns_forbidden_when_required_scope_is_missing() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let workdir = temp_test_dir("api-render-typst-forbidden");
+
+    let format = ReportFormat::built_in_typst(
+        BUILT_IN_TYPST_TECHNICAL_ID,
+        "Typst Technical Report",
+        "pdf",
+        "application/pdf",
+        workdir.clone(),
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer.clone());
+
+    let response = match render(
+        State(state),
+        auth_context_without_render_scope(),
+        Json(render_request(BUILT_IN_TYPST_TECHNICAL_ID)),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected forbidden error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert_eq!(renderer.calls_count(), 0);
+
+    let _ = fs::remove_dir_all(workdir);
+}
+
+#[tokio::test]
+async fn render_xml_typst_returns_forbidden_when_required_scope_is_missing() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let workdir = temp_test_dir("api-render-xml-typst-forbidden");
+
+    let format = ReportFormat::built_in_typst(
+        BUILT_IN_TYPST_TECHNICAL_ID,
+        "Typst Technical Report",
+        "pdf",
+        "application/pdf",
+        workdir.clone(),
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer.clone());
+
+    let response = match render_xml(
+        State(state),
+        auth_context_without_render_scope(),
+        Json(render_xml_request(BUILT_IN_TYPST_TECHNICAL_ID)),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected forbidden error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert_eq!(renderer.calls_count(), 0);
+
+    let _ = fs::remove_dir_all(workdir);
+}
+
+#[tokio::test]
+async fn render_typst_returns_not_found_when_format_is_not_registered() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let state = test_state(AuthMode::Jwt, "render", vec![], renderer.clone());
+
+    let response = match render(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(render_request(BUILT_IN_TYPST_TECHNICAL_ID)),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected not found error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(renderer.calls_count(), 0);
+}
+
+#[tokio::test]
+async fn render_xml_typst_returns_not_found_when_format_is_not_registered() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let state = test_state(AuthMode::Jwt, "render", vec![], renderer.clone());
+
+    let response = match render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(render_xml_request(BUILT_IN_TYPST_TECHNICAL_ID)),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected not found error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(renderer.calls_count(), 0);
+}
+
+#[tokio::test]
+async fn render_typst_returns_unprocessable_entity_for_invalid_timeout() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let workdir = temp_test_dir("api-render-typst-invalid-timeout");
+
+    let format = ReportFormat::built_in_typst(
+        BUILT_IN_TYPST_TECHNICAL_ID,
+        "Typst Technical Report",
+        "pdf",
+        "application/pdf",
+        workdir.clone(),
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer.clone());
+
+    let mut request = render_request(BUILT_IN_TYPST_TECHNICAL_ID);
+    request.timeout_seconds = 0;
+
+    let response = match render(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(request),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected validation error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(renderer.calls_count(), 0);
+
+    let _ = fs::remove_dir_all(workdir);
+}
+
+#[tokio::test]
+async fn render_xml_typst_returns_unprocessable_entity_for_invalid_timeout() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let workdir = temp_test_dir("api-render-xml-typst-invalid-timeout");
+
+    let format = ReportFormat::built_in_typst(
+        BUILT_IN_TYPST_TECHNICAL_ID,
+        "Typst Technical Report",
+        "pdf",
+        "application/pdf",
+        workdir.clone(),
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer.clone());
+
+    let mut request = render_xml_request(BUILT_IN_TYPST_TECHNICAL_ID);
+    request.timeout_seconds = 0;
+
+    let response = match render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(request),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected validation error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(renderer.calls_count(), 0);
+
+    let _ = fs::remove_dir_all(workdir);
+}
+
+#[tokio::test]
+async fn render_xml_typst_rejects_wrong_root_before_typst_renderer_runs() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let workdir = temp_test_dir("api-render-xml-typst-wrong-root");
+
+    let format = ReportFormat::built_in_typst(
+        BUILT_IN_TYPST_TECHNICAL_ID,
+        "Typst Technical Report",
+        "pdf",
+        "application/pdf",
+        workdir.clone(),
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer.clone());
+
+    let mut request = render_xml_request(BUILT_IN_TYPST_TECHNICAL_ID);
+    request.report_xml = "<foo></foo>".to_string();
+
+    let response = match render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(request),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected invalid report XML error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(renderer.calls_count(), 0);
+
+    let body = response_body_string(response).await;
+
+    assert!(body.contains("invalid_report_xml"));
+
+    let _ = fs::remove_dir_all(workdir);
+}
+
+#[tokio::test]
+async fn render_xml_typst_rejects_missing_inner_report_id_before_typst_renderer_runs() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let workdir = temp_test_dir("api-render-xml-typst-missing-inner-id");
+
+    let format = ReportFormat::built_in_typst(
+        BUILT_IN_TYPST_TECHNICAL_ID,
+        "Typst Technical Report",
+        "pdf",
+        "application/pdf",
+        workdir.clone(),
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer.clone());
+
+    let mut request = render_xml_request(BUILT_IN_TYPST_TECHNICAL_ID);
+    request.report_xml = r#"
+        <report id="outer-report">
+            <report>
+                <scan_run_status>Done</scan_run_status>
+                <results></results>
+            </report>
+        </report>
+    "#
+    .to_string();
+
+    let response = match render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(request),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected invalid report XML error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(renderer.calls_count(), 0);
+
+    let body = response_body_string(response).await;
+
+    assert!(body.contains("invalid_report_xml"));
+    assert!(body.contains("inner report id is missing"));
+
+    let _ = fs::remove_dir_all(workdir);
+}
+
+#[tokio::test]
+async fn render_xml_typst_rejects_empty_report_xml_before_typst_renderer_runs() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let workdir = temp_test_dir("api-render-xml-typst-empty-xml");
+
+    let format = ReportFormat::built_in_typst(
+        BUILT_IN_TYPST_TECHNICAL_ID,
+        "Typst Technical Report",
+        "pdf",
+        "application/pdf",
+        workdir.clone(),
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer.clone());
+
+    let mut request = render_xml_request(BUILT_IN_TYPST_TECHNICAL_ID);
+    request.report_xml = "".to_string();
+
+    let response = match render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(request),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected invalid report XML error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(renderer.calls_count(), 0);
+
+    let body = response_body_string(response).await;
+
+    assert!(body.contains("invalid_report_xml"));
+    assert!(body.contains("empty XML document"));
+
+    let _ = fs::remove_dir_all(workdir);
+}
+
+#[tokio::test]
+async fn render_xml_typst_does_not_call_feed_pipeline_renderer() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let workdir = temp_test_dir("api-render-xml-typst-no-feed-renderer-call");
+
+    let format = ReportFormat::built_in_typst(
+        BUILT_IN_TYPST_TECHNICAL_ID,
+        "Typst Technical Report",
+        "pdf",
+        "application/pdf",
+        workdir.clone(),
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer.clone());
+
+    let response = match render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(render_xml_request(BUILT_IN_TYPST_TECHNICAL_ID)),
+    )
+    .await
+    {
+        Ok(response) => response,
+        Err(error) => error.into_response(),
+    };
+
+    assert_ne!(response.status(), StatusCode::NOT_FOUND);
+    assert_ne!(response.status(), StatusCode::FORBIDDEN);
+    assert_ne!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(renderer.calls_count(), 0);
+
+    let _ = fs::remove_dir_all(workdir);
+}
+
+#[tokio::test]
+async fn render_xml_native_pdf_rejects_wrong_root_before_native_renderer_runs() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let workdir = temp_test_dir("api-render-xml-native-pdf-wrong-root");
+
+    let format = ReportFormat::built_in_native_pdf(
+        BUILT_IN_NATIVE_PDF_TECHNICAL_ID,
+        "Native PDF Technical Report",
+        "pdf",
+        "application/pdf",
+        workdir.clone(),
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer.clone());
+
+    let mut request = render_xml_request(BUILT_IN_NATIVE_PDF_TECHNICAL_ID);
+    request.report_xml = "<foo></foo>".to_string();
+
+    let response = match render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(request),
+    )
+    .await
+    {
+        Ok(_) => panic!("expected invalid report XML error"),
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(renderer.calls_count(), 0);
+
+    let body = response_body_string(response).await;
+
+    assert!(body.contains("invalid_report_xml"));
+
+    let _ = fs::remove_dir_all(workdir);
 }

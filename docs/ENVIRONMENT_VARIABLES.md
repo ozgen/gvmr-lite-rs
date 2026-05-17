@@ -6,13 +6,14 @@ All configuration variables use the `GVMR_` prefix.
 
 ## Core Configuration
 
-| Variable                       |                                         Default | Description                                                        |
-| ------------------------------ | ----------------------------------------------: | ------------------------------------------------------------------ |
-| `GVMR_PORT`                    |                                          `8084` | HTTP server port                                                   |
-| `GVMR_REPORT_FORMATS_FEED_DIR` | `/var/lib/gvm/data-objects/gvmd/report-formats` | Source directory containing report format files and related assets |
-| `GVMR_WORK_DIR`                |                           `/tmp/gvmr-lite/work` | Working directory used by the service                              |
-| `GVMR_REBUILD_ON_START`        |                                          `true` | Rebuild or rematerialize cached report formats on startup          |
-| `GVMR_MAX_BODY_BYTES`          |                                      `52428800` | Maximum accepted HTTP request body size in bytes                   |
+| Variable                       |                                         Default | Description                                                          |
+| ------------------------------ | ----------------------------------------------: | -------------------------------------------------------------------- |
+| `GVMR_PORT`                    |                                          `8084` | HTTP server port                                                     |
+| `GVMR_REPORT_FORMATS_FEED_DIR` | `/var/lib/gvm/data-objects/gvmd/report-formats` | Source directory containing report format files and related assets   |
+| `GVMR_WORK_DIR`                |                           `/tmp/gvmr-lite/work` | Working directory used by the service                                |
+| `GVMR_REBUILD_ON_START`        |                                          `true` | Rebuild or rematerialize cached report formats on startup            |
+| `GVMR_MAX_BODY_BYTES`          |                                      `52428800` | Maximum accepted HTTP request body size in bytes                     |
+| `GVMR_EXPERIMENTAL_ENABLED`    |                                         `false` | Enable experimental built-in Rust renderers such as Typst/native PDF |
 
 Derived internally:
 
@@ -130,6 +131,9 @@ GVMR_REQUIRED_SCOPE_SYNC=sync
 # Logging
 GVMR_LOG_LEVEL=debug
 GVMR_LOG_FORMAT=pretty
+
+# Experimental features
+GVMR_EXPERIMENTAL_ENABLED=false
 ```
 
 ---
@@ -140,5 +144,6 @@ GVMR_LOG_FORMAT=pretty
 - Values loaded from environment variables override defaults.
 - A local `.env` file can be used during development.
 - Some variables may be documented before their full implementation is completed in the Rust service. In such cases, the documented values describe the intended compatibility target.
+- `GVMR_EXPERIMENTAL_ENABLED=false` keeps experimental built-in renderers disabled. Set it to `true` to expose experimental built-in Rust renderers such as Typst/native PDF.
 
 ---

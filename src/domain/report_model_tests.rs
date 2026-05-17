@@ -169,6 +169,90 @@ fn deserializes_inner_report_counts_and_task() {
 }
 
 #[test]
+fn deserializes_inner_report_counts_and_container_image_task() {
+    let xml = r#"
+        <report id="outer-report-id">
+            <report id="inner-report-id">
+                <gmp>
+                    <version>22.7</version>
+                </gmp>
+                <scan_run_status>Done</scan_run_status>
+                <hosts>
+                    <count>2</count>
+                </hosts>
+                <closed_cves>
+                    <count>1</count>
+                </closed_cves>
+                <vulns>
+                    <count>3</count>
+                </vulns>
+                <os>
+                    <count>4</count>
+                </os>
+                <apps>
+                    <count>5</count>
+                </apps>
+                <ssl_certs>
+                    <count>6</count>
+                </ssl_certs>
+                <task id="task-1">
+                    <name>Main task</name>
+                    <comment>Main task comment</comment>
+                    <target id="target-1">
+                        <trash>0</trash>
+                        <name>Main target</name>
+                        <comment>Main target comment</comment>
+                    </target>
+                    <oci_image_target id="pci-image-1">
+                        <trash>0</trash>
+                        <name>OCI Image Target</name>
+                        <comment>OCI Image comment</comment>
+                    </oci_image_target>
+                    <progress>100</progress>
+                </task>
+            </report>
+        </report>
+    "#;
+
+    let envelope: ReportEnvelope =
+        quick_xml::de::from_str(xml).expect("report envelope should deserialize");
+
+    let report = envelope.report;
+
+    assert_eq!(report.id.as_deref(), Some("inner-report-id"));
+    assert_eq!(report.gmp.unwrap().version.as_deref(), Some("22.7"));
+    assert_eq!(report.scan_run_status.as_deref(), Some("Done"));
+
+    assert_eq!(report.hosts.unwrap().count.as_deref(), Some("2"));
+    assert_eq!(report.closed_cves.unwrap().count.as_deref(), Some("1"));
+    assert_eq!(report.vulns.unwrap().count.as_deref(), Some("3"));
+    assert_eq!(report.os.unwrap().count.as_deref(), Some("4"));
+    assert_eq!(report.apps.unwrap().count.as_deref(), Some("5"));
+    assert_eq!(report.ssl_certs.unwrap().count.as_deref(), Some("6"));
+
+    let task = report.task.expect("expected task");
+    assert_eq!(task.id.as_deref(), Some("task-1"));
+    assert_eq!(task.name.as_deref(), Some("Main task"));
+    assert_eq!(task.comment.as_deref(), Some("Main task comment"));
+    assert_eq!(task.progress.as_deref(), Some("100"));
+
+    let target = task.target.expect("expected target");
+    assert_eq!(target.id.as_deref(), Some("target-1"));
+    assert_eq!(target.trash.as_deref(), Some("0"));
+    assert_eq!(target.name.as_deref(), Some("Main target"));
+    assert_eq!(target.comment.as_deref(), Some("Main target comment"));
+
+    let oci_image_target = task.oci_image_target.expect("expected OCI image target");
+    assert_eq!(oci_image_target.id.as_deref(), Some("pci-image-1"));
+    assert_eq!(oci_image_target.trash.as_deref(), Some("0"));
+    assert_eq!(oci_image_target.name.as_deref(), Some("OCI Image Target"));
+    assert_eq!(
+        oci_image_target.comment.as_deref(),
+        Some("OCI Image comment")
+    );
+}
+
+#[test]
 fn deserializes_filters_sort_ports_and_result_counts() {
     let xml = r#"
         <report id="outer-report-id">

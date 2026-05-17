@@ -203,7 +203,7 @@ fn temp_test_dir(name: &str) -> PathBuf {
 }
 
 fn test_format(workdir: PathBuf, extension: &str, content_type: &str) -> ReportFormat {
-    ReportFormat::new(
+    ReportFormat::feed(
         "fmt-1".to_string(),
         "Test Format".to_string(),
         extension.to_string(),

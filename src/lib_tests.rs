@@ -23,11 +23,12 @@ fn test_settings(temp_dir: &std::path::Path) -> Settings {
         max_body_bytes: 10 * 1024 * 1024,
         log_level: "info".to_string(),
         log_format: "compact".to_string(),
+        experimental_enabled: false,
     }
 }
 
 #[tokio::test]
-async fn build_app_state_initializes_empty_format_cache() {
+async fn build_app_state_initializes_format_cache_with_built_in_formats() {
     let temp_dir = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(temp_dir.path().join("feed")).unwrap();
 
@@ -36,6 +37,7 @@ async fn build_app_state_initializes_empty_format_cache() {
     let app_state = build_app_state(settings).unwrap();
 
     let cache = app_state.format_cache.read().await;
+
     assert_eq!(cache.list().len(), 0);
 }
 

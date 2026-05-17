@@ -125,7 +125,7 @@ fn build_env_sets_expected_gvmr_variables_and_params() {
     let root = temp_test_dir("runner-build-env");
     let report_path = root.join("report.xml");
 
-    let fmt = ReportFormat::new(
+    let fmt = ReportFormat::feed(
         "fmt-1".to_string(),
         "PDF".to_string(),
         "pdf".to_string(),
@@ -448,7 +448,7 @@ fn temp_test_dir(name: &str) -> PathBuf {
 }
 
 fn test_format(workdir: PathBuf, extension: &str, content_type: &str) -> ReportFormat {
-    ReportFormat::new(
+    ReportFormat::feed(
         "fmt-1".to_string(),
         "Test Format".to_string(),
         extension.to_string(),

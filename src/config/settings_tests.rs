@@ -21,6 +21,7 @@ fn raw_settings() -> RawSettings {
         rebuild_on_start: true,
         log_level: "info".to_string(),
         log_format: "pretty".to_string(),
+        experimental_enabled: false,
     }
 }
 
@@ -46,7 +47,7 @@ fn load_uses_defaults_when_env_is_missing() {
 
     assert_eq!(settings.port, 8084);
     assert_eq!(settings.auth_mode, AuthMode::None);
-    assert_eq!(settings.max_body_bytes, 50 * 1024 * 1024);
+    assert_eq!(settings.max_body_bytes, 512 * 1024 * 1024);
 
     clear_gvmr_env();
 }
@@ -129,10 +130,11 @@ fn config_builder_provides_expected_defaults() {
     assert_eq!(settings.jwt_clock_skew_seconds, 300);
     assert_eq!(settings.required_scope_render, "render");
     assert_eq!(settings.required_scope_sync, "sync");
-    assert_eq!(settings.max_body_bytes, 50 * 1024 * 1024);
+    assert_eq!(settings.max_body_bytes, 512 * 1024 * 1024);
     assert!(settings.rebuild_on_start);
     assert_eq!(settings.log_level, "info");
     assert_eq!(settings.log_format, "pretty");
+    assert!(!settings.experimental_enabled);
 }
 
 #[test]

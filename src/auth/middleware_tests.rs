@@ -51,6 +51,7 @@ fn test_settings(auth_mode: AuthMode) -> Settings {
         log_level: "debug".to_string(),
         max_body_bytes: 0,
         log_format: "".to_string(),
+        experimental_enabled: false,
     }
 }
 
@@ -59,6 +60,7 @@ fn test_app(settings: Settings) -> Router {
         settings.report_formats_feed_dir.clone(),
         settings.report_formats_work_dir(),
         settings.rebuild_on_start,
+        settings.experimental_enabled,
     );
 
     let state = AppState::new(settings, format_cache);

@@ -52,6 +52,7 @@ pub(crate) fn build_app_state(settings: Settings) -> Result<AppState, AppError> 
         settings.report_formats_feed_dir.clone(),
         settings.report_formats_work_dir(),
         settings.rebuild_on_start,
+        settings.experimental_enabled,
     );
 
     format_cache.initialize().map_err(AppError::Bind)?;

@@ -415,8 +415,8 @@ pub struct RenderRequest {
 
 impl RenderRequest {
     pub fn validate(&self) -> Result<(), String> {
-        if self.timeout_seconds < 1 || self.timeout_seconds > 1201 {
-            return Err("timeout_seconds must be between 1 and 1201".to_string());
+        if self.timeout_seconds < 1 || self.timeout_seconds > 40001 {
+            return Err("timeout_seconds must be between 1 and 40001".to_string());
         }
 
         Ok(())

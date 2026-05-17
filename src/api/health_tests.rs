@@ -47,6 +47,7 @@ fn test_settings(feed_dir: PathBuf, work_dir: PathBuf) -> Settings {
 
         log_level: "info".to_string(),
         log_format: "pretty".to_string(),
+        experimental_enabled: false,
     }
 }
 
@@ -57,6 +58,7 @@ fn test_state(feed_dir: PathBuf, work_dir: PathBuf) -> AppState {
         settings.report_formats_feed_dir.clone(),
         settings.report_formats_work_dir(),
         settings.rebuild_on_start,
+        settings.experimental_enabled,
     );
 
     AppState::new(settings, format_cache)

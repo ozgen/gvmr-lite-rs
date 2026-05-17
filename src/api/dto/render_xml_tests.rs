@@ -54,7 +54,7 @@ fn validate_accepts_minimum_timeout_seconds() {
 
 #[test]
 fn validate_accepts_maximum_timeout_seconds() {
-    let req = test_request(1201);
+    let req = test_request(40001);
 
     let result = req.validate();
 
@@ -69,19 +69,19 @@ fn validate_rejects_zero_timeout_seconds() {
 
     assert_eq!(
         result,
-        Err("timeout_seconds must be between 1 and 1201".to_string())
+        Err("timeout_seconds must be between 1 and 40001".to_string())
     );
 }
 
 #[test]
 fn validate_rejects_timeout_seconds_above_maximum() {
-    let req = test_request(1202);
+    let req = test_request(40002);
 
     let result = req.validate();
 
     assert_eq!(
         result,
-        Err("timeout_seconds must be between 1 and 1201".to_string())
+        Err("timeout_seconds must be between 1 and 40001".to_string())
     );
 }
 

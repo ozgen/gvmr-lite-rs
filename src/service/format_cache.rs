@@ -9,7 +9,10 @@ use tracing::{debug, warn};
 use crate::{
     domain::{
         report_format::{ReportFormat, ReportFormatFile},
-        report_format_constants::DISCARDED_REPORT_FORMAT_IDS,
+        report_format_constants::{
+            BUILT_IN_NATIVE_PDF_TECHNICAL_ID, BUILT_IN_TYPST_TECHNICAL_ID,
+            DISCARDED_REPORT_FORMAT_IDS,
+        },
     },
     infra::fs::{
         delete_stale_dirs, delete_stale_files, ensure_dir, maybe_make_executable,
@@ -23,15 +26,22 @@ pub struct FormatCache {
     feed_dir: PathBuf,
     work_dir: PathBuf,
     rebuild_on_start: bool,
+    experimental: bool,
     formats: HashMap<String, ReportFormat>,
 }
 
 impl FormatCache {
-    pub fn new(feed_dir: PathBuf, work_dir: PathBuf, rebuild_on_start: bool) -> Self {
+    pub fn new(
+        feed_dir: PathBuf,
+        work_dir: PathBuf,
+        rebuild_on_start: bool,
+        experimental: bool,
+    ) -> Self {
         Self {
             feed_dir,
             work_dir,
             rebuild_on_start,
+            experimental,
             formats: HashMap::new(),
         }
     }
@@ -68,6 +78,41 @@ impl FormatCache {
             }
         }
 
+        self.register_built_in_formats()?;
+
+        Ok(())
+    }
+
+    fn register_built_in_formats(&mut self) -> std::io::Result<()> {
+        if !self.experimental {
+            return Ok(());
+        }
+        let typst_workdir = self.work_dir.join(BUILT_IN_TYPST_TECHNICAL_ID);
+        ensure_dir(&typst_workdir)?;
+
+        let format = ReportFormat::built_in_typst(
+            BUILT_IN_TYPST_TECHNICAL_ID,
+            "Typst Technical Report",
+            "pdf",
+            "application/pdf",
+            typst_workdir,
+        );
+
+        self.formats.insert(format.id.clone(), format);
+
+        let native_pdf_workdir = self.work_dir.join(BUILT_IN_NATIVE_PDF_TECHNICAL_ID);
+        ensure_dir(&native_pdf_workdir)?;
+
+        let native_pdf_format = ReportFormat::built_in_native_pdf(
+            BUILT_IN_NATIVE_PDF_TECHNICAL_ID,
+            "Native PDF Technical Report",
+            "pdf",
+            "application/pdf",
+            native_pdf_workdir,
+        );
+
+        self.formats
+            .insert(native_pdf_format.id.clone(), native_pdf_format);
         Ok(())
     }
 
@@ -115,7 +160,7 @@ impl FormatCache {
             delete_stale_dirs(&self.work_dir, &HashSet::new())?;
         }
 
-        Ok(())
+        self.register_built_in_formats()
     }
 
     fn parse_formats(&self, xml_files: Vec<PathBuf>) -> Vec<ParsedReportFormat> {
@@ -164,7 +209,7 @@ impl FormatCache {
             "cached report format"
         );
 
-        Ok(Some(ReportFormat::new(
+        Ok(Some(ReportFormat::feed(
             parsed.id,
             parsed.name,
             parsed.extension,
@@ -260,6 +305,7 @@ impl FormatCache {
             feed_dir,
             work_dir,
             rebuild_on_start,
+            experimental: false,
             formats,
         }
     }

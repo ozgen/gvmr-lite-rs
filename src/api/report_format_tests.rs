@@ -49,6 +49,7 @@ fn test_settings(
 
         log_level: "info".to_string(),
         log_format: "pretty".to_string(),
+        experimental_enabled: false,
     }
 }
 
@@ -71,7 +72,7 @@ fn auth_context_without_sync_scope() -> AuthContext {
 fn report_format(id: &str, name: &str, extension: &str, content_type: &str) -> ReportFormat {
     let workdir = PathBuf::from(format!("/tmp/work/report-formats/{id}"));
 
-    ReportFormat::new(
+    ReportFormat::feed(
         id.to_string(),
         name.to_string(),
         extension.to_string(),

@@ -41,6 +41,7 @@ fn test_settings(auth_mode: AuthMode, required_scope_sync: &str) -> Settings {
 
         log_level: "info".to_string(),
         log_format: "pretty".to_string(),
+        experimental_enabled: false,
     }
 }
 
@@ -51,6 +52,7 @@ fn test_state(auth_mode: AuthMode, required_scope_sync: &str) -> AppState {
         settings.report_formats_feed_dir.clone(),
         settings.report_formats_work_dir(),
         settings.rebuild_on_start,
+        settings.experimental_enabled,
     );
 
     AppState::new(settings, format_cache)

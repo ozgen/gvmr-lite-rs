@@ -1,5 +1,10 @@
 use super::*;
-use crate::xml::report_format_parser::{ParsedReportFormat, ParsedReportFormatFile};
+use crate::{
+    domain::report_format_constants::{
+        BUILT_IN_NATIVE_PDF_TECHNICAL_ID, BUILT_IN_TYPST_TECHNICAL_ID,
+    },
+    xml::report_format_parser::{ParsedReportFormat, ParsedReportFormatFile},
+};
 use std::{fs, path::PathBuf};
 
 #[test]
@@ -21,12 +26,17 @@ fn initialize_with_force_parses_xml_and_caches_format() {
     )
     .unwrap();
 
-    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false);
+    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, true);
 
     cache.initialize_with_force(false).unwrap();
 
     assert!(cache.get("fmt-1").is_some());
+    assert!(cache.get(BUILT_IN_TYPST_TECHNICAL_ID).is_some());
+    assert!(cache.get(BUILT_IN_NATIVE_PDF_TECHNICAL_ID).is_some());
+
     assert!(work_dir.join("fmt-1").exists());
+    assert!(work_dir.join(BUILT_IN_TYPST_TECHNICAL_ID).exists());
+    assert!(work_dir.join(BUILT_IN_NATIVE_PDF_TECHNICAL_ID).exists());
 
     let _ = fs::remove_dir_all(feed_dir);
     let _ = fs::remove_dir_all(work_dir);
@@ -42,12 +52,13 @@ fn initialize_with_force_creates_work_dir_when_feed_is_empty() {
 
     let _ = fs::remove_dir_all(&work_dir);
 
-    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false);
+    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, true);
 
     cache.initialize_with_force(false).unwrap();
 
     assert!(work_dir.exists());
-    assert!(cache.list().is_empty());
+    assert_eq!(cache.list().len(), 2);
+    assert_built_in_formats_registered(&cache, &work_dir);
 
     let _ = fs::remove_dir_all(feed_dir);
     let _ = fs::remove_dir_all(work_dir);
@@ -58,11 +69,12 @@ fn initialize_calls_initialize_with_force_false_behavior() {
     let feed_dir = temp_test_dir("initialize-feed");
     let work_dir = temp_test_dir("initialize-work");
 
-    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false);
+    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, true);
 
     cache.initialize().unwrap();
 
-    assert!(cache.list().is_empty());
+    assert_eq!(cache.list().len(), 2);
+    assert_built_in_formats_registered(&cache, &work_dir);
 
     let _ = fs::remove_dir_all(feed_dir);
     let _ = fs::remove_dir_all(work_dir);
@@ -77,7 +89,7 @@ fn initialize_with_force_true_clears_existing_formats_when_feed_is_empty() {
     fs::create_dir_all(&old_workdir).unwrap();
     fs::write(old_workdir.join("old.txt"), b"old").unwrap();
 
-    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false);
+    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, true);
 
     cache
         .formats
@@ -85,8 +97,10 @@ fn initialize_with_force_true_clears_existing_formats_when_feed_is_empty() {
 
     cache.initialize_with_force(true).unwrap();
 
-    assert!(cache.list().is_empty());
+    assert_eq!(cache.list().len(), 2);
+    assert!(cache.get("old-format").is_none());
     assert!(!work_dir.join("old-format").exists());
+    assert_built_in_formats_registered(&cache, &work_dir);
 
     let _ = fs::remove_dir_all(feed_dir);
     let _ = fs::remove_dir_all(work_dir);
@@ -100,7 +114,7 @@ fn initialize_with_force_false_keeps_existing_formats_when_feed_is_empty() {
     let old_workdir = work_dir.join("old-format");
     fs::create_dir_all(&old_workdir).unwrap();
 
-    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false);
+    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, true);
 
     cache
         .formats
@@ -108,8 +122,10 @@ fn initialize_with_force_false_keeps_existing_formats_when_feed_is_empty() {
 
     cache.initialize_with_force(false).unwrap();
 
+    assert_eq!(cache.list().len(), 3);
     assert!(cache.get("old-format").is_some());
     assert!(work_dir.join("old-format").exists());
+    assert_built_in_formats_registered(&cache, &work_dir);
 
     let _ = fs::remove_dir_all(feed_dir);
     let _ = fs::remove_dir_all(work_dir);
@@ -123,7 +139,7 @@ fn rebuild_uses_force_and_clears_existing_formats_when_feed_is_empty() {
     let old_workdir = work_dir.join("old-format");
     fs::create_dir_all(&old_workdir).unwrap();
 
-    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false);
+    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, true);
 
     cache
         .formats
@@ -131,8 +147,10 @@ fn rebuild_uses_force_and_clears_existing_formats_when_feed_is_empty() {
 
     cache.rebuild().unwrap();
 
-    assert!(cache.list().is_empty());
+    assert_eq!(cache.list().len(), 2);
+    assert!(cache.get("old-format").is_none());
     assert!(!work_dir.join("old-format").exists());
+    assert_built_in_formats_registered(&cache, &work_dir);
 
     let _ = fs::remove_dir_all(feed_dir);
     let _ = fs::remove_dir_all(work_dir);
@@ -143,11 +161,11 @@ fn list_returns_all_cached_formats() {
     let feed_dir = temp_test_dir("list-feed");
     let work_dir = temp_test_dir("list-work");
 
-    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false);
+    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, true);
 
     cache.formats.insert(
         "fmt-1".to_string(),
-        ReportFormat::new(
+        ReportFormat::feed(
             "fmt-1".to_string(),
             "Format 1".to_string(),
             "txt".to_string(),
@@ -159,7 +177,7 @@ fn list_returns_all_cached_formats() {
 
     cache.formats.insert(
         "fmt-2".to_string(),
-        ReportFormat::new(
+        ReportFormat::feed(
             "fmt-2".to_string(),
             "Format 2".to_string(),
             "html".to_string(),
@@ -182,11 +200,11 @@ fn get_returns_format_by_id() {
     let feed_dir = temp_test_dir("get-feed");
     let work_dir = temp_test_dir("get-work");
 
-    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false);
+    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, true);
 
     cache.formats.insert(
         "fmt-1".to_string(),
-        ReportFormat::new(
+        ReportFormat::feed(
             "fmt-1".to_string(),
             "Format 1".to_string(),
             "txt".to_string(),
@@ -211,7 +229,7 @@ fn parse_formats_skips_invalid_xml_files() {
     let invalid_xml = feed_dir.join("invalid.xml");
     fs::write(&invalid_xml, b"<report_format>").unwrap();
 
-    let cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false);
+    let cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, true);
 
     let parsed = cache.parse_formats(vec![invalid_xml]);
 
@@ -230,7 +248,7 @@ fn discover_xml_files_returns_only_xml_files_sorted() {
     fs::write(feed_dir.join("a.xml"), b"").unwrap();
     fs::write(feed_dir.join("ignored.txt"), b"").unwrap();
 
-    let cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false);
+    let cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, true);
 
     let files = cache.discover_xml_files().unwrap();
 
@@ -249,7 +267,7 @@ fn discover_xml_files_returns_empty_when_feed_dir_is_missing() {
 
     let _ = fs::remove_dir_all(&feed_dir);
 
-    let cache = FormatCache::new(feed_dir, work_dir.clone(), false);
+    let cache = FormatCache::new(feed_dir, work_dir.clone(), false, true);
 
     let files = cache.discover_xml_files().unwrap();
 
@@ -265,7 +283,7 @@ fn handle_empty_feed_clears_formats_when_force_is_true() {
 
     fs::create_dir_all(work_dir.join("old-format")).unwrap();
 
-    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false);
+    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, true);
 
     cache.formats.insert(
         "old-format".to_string(),
@@ -274,8 +292,35 @@ fn handle_empty_feed_clears_formats_when_force_is_true() {
 
     cache.handle_empty_feed(true).unwrap();
 
-    assert!(cache.formats.is_empty());
+    assert_eq!(cache.list().len(), 2);
+    assert!(cache.get("old-format").is_none());
     assert!(!work_dir.join("old-format").exists());
+    assert_built_in_formats_registered(&cache, &work_dir);
+
+    let _ = fs::remove_dir_all(feed_dir);
+    let _ = fs::remove_dir_all(work_dir);
+}
+
+#[test]
+fn handle_empty_feed_keeps_formats_when_force_is_false() {
+    let feed_dir = temp_test_dir("format-cache-empty-feed-no-force");
+    let work_dir = temp_test_dir("format-cache-empty-work-no-force");
+
+    fs::create_dir_all(work_dir.join("old-format")).unwrap();
+
+    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, true);
+
+    cache.formats.insert(
+        "old-format".to_string(),
+        test_report_format(work_dir.join("old-format")),
+    );
+
+    cache.handle_empty_feed(false).unwrap();
+
+    assert_eq!(cache.list().len(), 3);
+    assert!(cache.get("old-format").is_some());
+    assert!(work_dir.join("old-format").exists());
+    assert_built_in_formats_registered(&cache, &work_dir);
 
     let _ = fs::remove_dir_all(feed_dir);
     let _ = fs::remove_dir_all(work_dir);
@@ -289,7 +334,7 @@ fn cache_file_writes_embedded_content() {
 
     fs::create_dir_all(&fmt_workdir).unwrap();
 
-    let cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false);
+    let cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, true);
 
     let parsed_file = parsed_file_with_content("generate", b"#!/bin/sh\necho hello\n");
 
@@ -317,7 +362,7 @@ fn cache_file_copies_external_asset_from_feed_dir() {
     fs::create_dir_all(&fmt_workdir).unwrap();
     fs::write(feed_dir.join("style.xsl"), b"asset content").unwrap();
 
-    let cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false);
+    let cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, true);
 
     let parsed_file = parsed_file_without_content("style.xsl");
 
@@ -344,7 +389,7 @@ fn cache_file_returns_none_when_external_asset_is_missing() {
 
     fs::create_dir_all(&fmt_workdir).unwrap();
 
-    let cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false);
+    let cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, true);
 
     let parsed_file = parsed_file_without_content("missing.xsl");
 
@@ -368,7 +413,7 @@ fn cache_file_does_not_overwrite_existing_file_without_force() {
     fs::create_dir_all(&fmt_workdir).unwrap();
     fs::write(fmt_workdir.join("generate"), b"old").unwrap();
 
-    let cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false);
+    let cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, true);
 
     let parsed_file = parsed_file_with_content("generate", b"new");
 
@@ -391,7 +436,7 @@ fn cache_file_overwrites_existing_file_when_force_is_true() {
     fs::create_dir_all(&fmt_workdir).unwrap();
     fs::write(fmt_workdir.join("generate"), b"old").unwrap();
 
-    let cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false);
+    let cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, true);
 
     let parsed_file = parsed_file_with_content("generate", b"new");
 
@@ -414,7 +459,7 @@ fn cache_file_overwrites_existing_file_when_rebuild_on_start_is_true() {
     fs::create_dir_all(&fmt_workdir).unwrap();
     fs::write(fmt_workdir.join("generate"), b"old").unwrap();
 
-    let cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), true);
+    let cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), true, true);
 
     let parsed_file = parsed_file_with_content("generate", b"new");
 
@@ -433,7 +478,7 @@ fn cache_format_skips_audit_report_format() {
     let feed_dir = temp_test_dir("format-cache-skip-feed");
     let work_dir = temp_test_dir("format-cache-skip-work");
 
-    let cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false);
+    let cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, true);
 
     let parsed = parsed_format(
         "fmt-audit",
@@ -455,7 +500,7 @@ fn cache_format_creates_report_format_and_writes_files() {
     let feed_dir = temp_test_dir("format-cache-create-feed");
     let work_dir = temp_test_dir("format-cache-create-work");
 
-    let cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false);
+    let cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, true);
 
     let parsed = parsed_format(
         "fmt-1",
@@ -485,7 +530,7 @@ fn cache_format_files_deletes_stale_files_when_force_is_true() {
     fs::create_dir_all(&fmt_workdir).unwrap();
     fs::write(fmt_workdir.join("old-file"), b"old").unwrap();
 
-    let cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false);
+    let cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, true);
 
     let parsed = parsed_format(
         "fmt-1",
@@ -506,6 +551,166 @@ fn cache_format_files_deletes_stale_files_when_force_is_true() {
 }
 
 #[test]
+fn initialize_with_empty_feed_does_not_register_built_ins_when_experimental_is_false() {
+    let feed_dir = temp_test_dir("init-empty-feed-no-experimental");
+    let work_dir = temp_test_dir("init-empty-work-no-experimental");
+
+    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, false);
+
+    cache.initialize().unwrap();
+
+    assert!(work_dir.exists());
+    assert_eq!(cache.list().len(), 0);
+    assert_built_in_formats_not_registered(&cache, &work_dir);
+
+    let _ = fs::remove_dir_all(feed_dir);
+    let _ = fs::remove_dir_all(work_dir);
+}
+
+#[test]
+fn initialize_with_missing_feed_does_not_register_built_ins_when_experimental_is_false() {
+    let root_dir = temp_test_dir("missing-feed-root-no-experimental");
+    let feed_dir = root_dir.join("missing-feed");
+    let work_dir = root_dir.join("work");
+
+    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, false);
+
+    cache.initialize().unwrap();
+
+    assert!(work_dir.exists());
+    assert_eq!(cache.list().len(), 0);
+    assert_built_in_formats_not_registered(&cache, &work_dir);
+
+    let _ = fs::remove_dir_all(root_dir);
+}
+
+#[test]
+fn initialize_with_valid_feed_caches_feed_format_only_when_experimental_is_false() {
+    let feed_dir = temp_test_dir("init-valid-feed-no-experimental");
+    let work_dir = temp_test_dir("init-valid-work-no-experimental");
+
+    fs::write(
+        feed_dir.join("format.xml"),
+        r#"
+        <report_format id="fmt-1">
+            <name>Test Format</name>
+            <extension>txt</extension>
+            <content_type>text/plain</content_type>
+            <report_type>scan</report_type>
+            <file name="generate">aGVsbG8=</file>
+        </report_format>
+        "#,
+    )
+    .unwrap();
+
+    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, false);
+
+    cache.initialize().unwrap();
+
+    assert_eq!(cache.list().len(), 1);
+    assert!(cache.get("fmt-1").is_some());
+    assert!(work_dir.join("fmt-1").exists());
+    assert_built_in_formats_not_registered(&cache, &work_dir);
+
+    let _ = fs::remove_dir_all(feed_dir);
+    let _ = fs::remove_dir_all(work_dir);
+}
+
+#[test]
+fn initialize_with_force_true_clears_existing_formats_and_does_not_register_built_ins_when_experimental_is_false()
+ {
+    let feed_dir = temp_test_dir("init-force-empty-feed-no-experimental");
+    let work_dir = temp_test_dir("init-force-empty-work-no-experimental");
+
+    let old_workdir = work_dir.join("old-format");
+    fs::create_dir_all(&old_workdir).unwrap();
+    fs::write(old_workdir.join("old.txt"), b"old").unwrap();
+
+    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, false);
+
+    cache
+        .formats
+        .insert("old-format".to_string(), test_report_format(old_workdir));
+
+    cache.initialize_with_force(true).unwrap();
+
+    assert_eq!(cache.list().len(), 0);
+    assert!(cache.get("old-format").is_none());
+    assert!(!work_dir.join("old-format").exists());
+    assert_built_in_formats_not_registered(&cache, &work_dir);
+
+    let _ = fs::remove_dir_all(feed_dir);
+    let _ = fs::remove_dir_all(work_dir);
+}
+
+#[test]
+fn initialize_with_force_false_keeps_existing_formats_but_does_not_register_built_ins_when_experimental_is_false()
+ {
+    let feed_dir = temp_test_dir("init-no-force-empty-feed-no-experimental");
+    let work_dir = temp_test_dir("init-no-force-empty-work-no-experimental");
+
+    let old_workdir = work_dir.join("old-format");
+    fs::create_dir_all(&old_workdir).unwrap();
+
+    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, false);
+
+    cache
+        .formats
+        .insert("old-format".to_string(), test_report_format(old_workdir));
+
+    cache.initialize_with_force(false).unwrap();
+
+    assert_eq!(cache.list().len(), 1);
+    assert!(cache.get("old-format").is_some());
+    assert!(work_dir.join("old-format").exists());
+    assert_built_in_formats_not_registered(&cache, &work_dir);
+
+    let _ = fs::remove_dir_all(feed_dir);
+    let _ = fs::remove_dir_all(work_dir);
+}
+
+#[test]
+fn rebuild_does_not_register_built_ins_when_experimental_is_false() {
+    let feed_dir = temp_test_dir("rebuild-empty-feed-no-experimental");
+    let work_dir = temp_test_dir("rebuild-empty-work-no-experimental");
+
+    let old_workdir = work_dir.join("old-format");
+    fs::create_dir_all(&old_workdir).unwrap();
+
+    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, false);
+
+    cache
+        .formats
+        .insert("old-format".to_string(), test_report_format(old_workdir));
+
+    cache.rebuild().unwrap();
+
+    assert_eq!(cache.list().len(), 0);
+    assert!(cache.get("old-format").is_none());
+    assert!(!work_dir.join("old-format").exists());
+    assert_built_in_formats_not_registered(&cache, &work_dir);
+
+    let _ = fs::remove_dir_all(feed_dir);
+    let _ = fs::remove_dir_all(work_dir);
+}
+
+#[test]
+fn register_built_in_formats_is_noop_when_experimental_is_false() {
+    let feed_dir = temp_test_dir("register-builtins-feed-no-experimental");
+    let work_dir = temp_test_dir("register-builtins-work-no-experimental");
+
+    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, false);
+
+    cache.register_built_in_formats().unwrap();
+
+    assert_eq!(cache.list().len(), 0);
+    assert_built_in_formats_not_registered(&cache, &work_dir);
+
+    let _ = fs::remove_dir_all(feed_dir);
+    let _ = fs::remove_dir_all(work_dir);
+}
+
+#[test]
 fn should_skip_report_format_returns_true_for_audit() {
     assert!(FormatCache::should_skip_report_format("fmt-1", "audit"));
     assert!(FormatCache::should_skip_report_format("fmt-1", "AUDIT"));
@@ -514,6 +719,14 @@ fn should_skip_report_format_returns_true_for_audit() {
 #[test]
 fn should_skip_report_format_returns_false_for_normal_report_type() {
     assert!(!FormatCache::should_skip_report_format("fmt-1", "scan"));
+}
+
+fn assert_built_in_formats_registered(cache: &FormatCache, work_dir: &Path) {
+    assert!(cache.get(BUILT_IN_TYPST_TECHNICAL_ID).is_some());
+    assert!(cache.get(BUILT_IN_NATIVE_PDF_TECHNICAL_ID).is_some());
+
+    assert!(work_dir.join(BUILT_IN_TYPST_TECHNICAL_ID).exists());
+    assert!(work_dir.join(BUILT_IN_NATIVE_PDF_TECHNICAL_ID).exists());
 }
 
 fn parsed_file_with_content(name: &str, content: &[u8]) -> ParsedReportFormatFile {
@@ -546,7 +759,7 @@ fn parsed_format(
 }
 
 fn test_report_format(workdir: PathBuf) -> ReportFormat {
-    ReportFormat::new(
+    ReportFormat::feed(
         "old-format".to_string(),
         "Old Format".to_string(),
         "txt".to_string(),
@@ -563,4 +776,12 @@ fn temp_test_dir(name: &str) -> PathBuf {
     fs::create_dir_all(&dir).unwrap();
 
     dir
+}
+
+fn assert_built_in_formats_not_registered(cache: &FormatCache, work_dir: &Path) {
+    assert!(cache.get(BUILT_IN_TYPST_TECHNICAL_ID).is_none());
+    assert!(cache.get(BUILT_IN_NATIVE_PDF_TECHNICAL_ID).is_none());
+
+    assert!(!work_dir.join(BUILT_IN_TYPST_TECHNICAL_ID).exists());
+    assert!(!work_dir.join(BUILT_IN_NATIVE_PDF_TECHNICAL_ID).exists());
 }

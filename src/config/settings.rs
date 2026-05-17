@@ -51,6 +51,7 @@ pub struct Settings {
 
     pub log_level: String,
     pub log_format: String,
+    pub experimental_enabled: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -71,6 +72,7 @@ struct RawSettings {
     rebuild_on_start: bool,
     log_level: String,
     log_format: String,
+    experimental_enabled: bool,
 }
 
 impl Settings {
@@ -101,10 +103,11 @@ impl Settings {
             .set_default("jwt_clock_skew_seconds", 300)?
             .set_default("required_scope_render", "render")?
             .set_default("required_scope_sync", "sync")?
-            .set_default("max_body_bytes", 50 * 1024 * 1024)?
+            .set_default("max_body_bytes", 512 * 1024 * 1024)?
             .set_default("rebuild_on_start", true)?
             .set_default("log_level", "info")?
-            .set_default("log_format", "pretty")
+            .set_default("log_format", "pretty")?
+            .set_default("experimental_enabled", false)
     }
 
     fn from_raw(raw: RawSettings) -> Result<Self, config::ConfigError> {
@@ -137,6 +140,7 @@ impl Settings {
             rebuild_on_start: raw.rebuild_on_start,
             log_level: raw.log_level,
             log_format: raw.log_format,
+            experimental_enabled: raw.experimental_enabled,
         })
     }
 

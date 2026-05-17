@@ -1,4 +1,6 @@
-use crate::domain::report_format::{ReportFormat, ReportFormatFile};
+use crate::domain::report_format::{
+    RendererBackend, ReportFormat, ReportFormatFile, ReportFormatSource,
+};
 use std::path::PathBuf;
 
 use super::{ReportFormatListResponse, ReportFormatResponse, ReportFormatSyncResponse};
@@ -9,6 +11,8 @@ fn report_format_response_from_report_format_maps_basic_fields() {
         id: "format-1".to_string(),
         name: "PDF Report".to_string(),
         extension: "pdf".to_string(),
+        source: ReportFormatSource::Feed,
+        backend: RendererBackend::FeedPipeline,
         content_type: "application/pdf".to_string(),
         workdir: PathBuf::from("/tmp/work/format-1"),
         files: vec![],
@@ -30,6 +34,8 @@ fn report_format_response_from_report_format_maps_files() {
         id: "format-1".to_string(),
         name: "PDF Report".to_string(),
         extension: "pdf".to_string(),
+        source: ReportFormatSource::Feed,
+        backend: RendererBackend::FeedPipeline,
         content_type: "application/pdf".to_string(),
         workdir: PathBuf::from("/tmp/work/format-1"),
         files: vec![

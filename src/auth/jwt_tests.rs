@@ -179,5 +179,6 @@ fn test_settings() -> Settings {
         log_level: "debug".to_string(),
         max_body_bytes: 1024 * 1024,
         log_format: "pretty".to_string(),
+        experimental_enabled: false,
     }
 }

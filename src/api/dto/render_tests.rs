@@ -157,7 +157,7 @@ fn render_request_validate_accepts_valid_timeout() {
     let request: RenderRequest = serde_json::from_value(json!({
         "format_id": "format-1",
         "report_json": {},
-        "timeout_seconds": 1201
+        "timeout_seconds": 40001
     }))
     .unwrap();
 
@@ -175,7 +175,7 @@ fn render_request_validate_rejects_zero_timeout() {
 
     assert_eq!(
         request.validate(),
-        Err("timeout_seconds must be between 1 and 1201".to_string())
+        Err("timeout_seconds must be between 1 and 40001".to_string())
     );
 }
 
@@ -184,13 +184,13 @@ fn render_request_validate_rejects_timeout_above_limit() {
     let request: RenderRequest = serde_json::from_value(json!({
         "format_id": "format-1",
         "report_json": {},
-        "timeout_seconds": 1202
+        "timeout_seconds": 40002
     }))
     .unwrap();
 
     assert_eq!(
         request.validate(),
-        Err("timeout_seconds must be between 1 and 1201".to_string())
+        Err("timeout_seconds must be between 1 and 40001".to_string())
     );
 }
 

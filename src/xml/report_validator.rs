@@ -21,6 +21,17 @@ pub enum ReportXmlValidationError {
     InvalidStructure(String),
 }
 
+pub fn parse_report_xml(report_xml: &str) -> Result<ReportEnvelope, ReportXmlValidationError> {
+    validate_report_root(report_xml)?;
+
+    let envelope: ReportEnvelope = from_str(report_xml)
+        .map_err(|err| ReportXmlValidationError::InvalidXml(err.to_string()))?;
+
+    validate_report_envelope(&envelope)?;
+
+    Ok(envelope)
+}
+
 pub fn validate_report_xml(report_xml: &str) -> Result<(), ReportXmlValidationError> {
     validate_report_root(report_xml)?;
 
@@ -53,10 +64,17 @@ fn validate_report_root(report_xml: &str) -> Result<(), ReportXmlValidationError
 
     let mut seen_root = false;
     let mut root_depth = 0usize;
+    let mut root_closed = false;
 
     loop {
         match reader.read_event() {
             Ok(Event::Start(start)) => {
+                if root_closed {
+                    return Err(ReportXmlValidationError::InvalidXml(
+                        "multiple root elements found".to_string(),
+                    ));
+                }
+
                 if !seen_root {
                     if start.name().as_ref() != b"report" {
                         return Err(ReportXmlValidationError::InvalidRootElement);
@@ -69,17 +87,28 @@ fn validate_report_root(report_xml: &str) -> Result<(), ReportXmlValidationError
             }
 
             Ok(Event::Empty(start)) => {
+                if root_closed {
+                    return Err(ReportXmlValidationError::InvalidXml(
+                        "multiple root elements found".to_string(),
+                    ));
+                }
+
                 if !seen_root {
                     if start.name().as_ref() != b"report" {
                         return Err(ReportXmlValidationError::InvalidRootElement);
                     }
 
                     seen_root = true;
+                    root_closed = true;
                 }
             }
 
             Ok(Event::End(_)) => {
                 root_depth = root_depth.saturating_sub(1);
+
+                if seen_root && root_depth == 0 {
+                    root_closed = true;
+                }
             }
 
             Ok(Event::Decl(_))
@@ -90,16 +119,22 @@ fn validate_report_root(report_xml: &str) -> Result<(), ReportXmlValidationError
             }
 
             Ok(Event::Text(text)) => {
+                let value = text
+                    .decode()
+                    .map_err(|err| ReportXmlValidationError::InvalidXml(err.to_string()))?;
+
+                if value.trim().is_empty() {
+                    continue;
+                }
+
                 if !seen_root {
-                    let value = text
-                        .decode()
-                        .map_err(|err| ReportXmlValidationError::InvalidXml(err.to_string()))?;
-
-                    if value.trim().is_empty() {
-                        continue;
-                    }
-
                     return Err(ReportXmlValidationError::TextBeforeRootElement);
+                }
+
+                if root_closed {
+                    return Err(ReportXmlValidationError::InvalidXml(
+                        "text found after root element".to_string(),
+                    ));
                 }
             }
 

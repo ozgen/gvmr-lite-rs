@@ -28,6 +28,7 @@ fn test_settings() -> Settings {
 
         log_level: "debug".to_string(),
         log_format: String::new(),
+        experimental_enabled: false,
     }
 }
 
@@ -36,6 +37,7 @@ fn test_cache(settings: &Settings) -> FormatCache {
         settings.report_formats_feed_dir.clone(),
         settings.report_formats_work_dir(),
         settings.rebuild_on_start,
+        settings.experimental_enabled,
     )
 }
 

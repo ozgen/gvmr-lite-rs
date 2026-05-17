@@ -9,3 +9,7 @@ pub const DISCARDED_REPORT_FORMAT_IDS: &[&str] = &[
     "2a28a134-147c-11eb-8c6e-b05cda5b0faa",
     "1fb9036c-1439-11eb-9d5d-b05cda5b0faa",
 ];
+
+pub const BUILT_IN_TYPST_TECHNICAL_ID: &str = "a9063afd-313e-434e-9008-9dfe3a22e00f";
+
+pub const BUILT_IN_NATIVE_PDF_TECHNICAL_ID: &str = "a9063afd-313e-434e-9008-9dfe3a22e010";

@@ -43,6 +43,7 @@ use crate::{
         format_cache::FormatCache,
         report_renderer::{RenderError, RenderResult, ReportRenderer},
     },
+    xml::report_validator::parse_report_xml_flexible,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -339,6 +340,25 @@ fn temp_test_dir(name: &str) -> PathBuf {
     fs::create_dir_all(&dir).unwrap();
 
     dir
+}
+
+fn minimal_inner_report_xml() -> String {
+    r#"
+<report id="inner-report-id">
+  <task id="task-id">
+    <name>Test task</name>
+  </task>
+  <scan_start>2025-01-01T00:00:00Z</scan_start>
+  <scan_end>2025-01-01T00:01:00Z</scan_end>
+  <results start="1" max="1000">
+  </results>
+  <result_count>
+    <full>0</full>
+    <filtered>0</filtered>
+  </result_count>
+</report>
+"#
+    .to_string()
 }
 
 #[tokio::test]
@@ -1034,7 +1054,7 @@ async fn render_xml_returns_unprocessable_entity_for_invalid_typst_report_xml() 
     let body = response_body_string(response).await;
 
     assert!(body.contains("invalid_report_xml"));
-    assert!(body.contains("Report XML does not match ReportEnvelope"));
+    assert!(body.contains("Report XML is not a valid report envelope or inner report"));
 
     let _ = fs::remove_dir_all(workdir);
 }
@@ -1074,7 +1094,7 @@ async fn render_xml_returns_unprocessable_entity_for_invalid_native_pdf_report_x
     let body = response_body_string(response).await;
 
     assert!(body.contains("invalid_report_xml"));
-    assert!(body.contains("Report XML does not match ReportEnvelope"));
+    assert!(body.contains("Report XML is not a valid report envelope or inner report"));
 
     let _ = fs::remove_dir_all(workdir);
 }
@@ -1295,7 +1315,7 @@ async fn render_xml_typst_rejects_wrong_root_before_running_renderer() {
     let body = response_body_string(response).await;
 
     assert!(body.contains("invalid_report_xml"));
-    assert!(body.contains("Report XML does not match ReportEnvelope"));
+    assert!(body.contains("Report XML is not a valid report envelope or inner report"));
 
     let _ = fs::remove_dir_all(workdir);
 }
@@ -1831,4 +1851,12 @@ async fn render_xml_native_pdf_rejects_wrong_root_before_native_renderer_runs() 
     assert!(body.contains("invalid_report_xml"));
 
     let _ = fs::remove_dir_all(workdir);
+}
+
+#[test]
+fn parse_report_xml_flexible_accepts_inner_report() {
+    let report = parse_report_xml_flexible(&minimal_inner_report_xml())
+        .expect("inner report XML should parse");
+
+    assert_eq!(report.report.id.as_deref(), Some("inner-report-id"));
 }

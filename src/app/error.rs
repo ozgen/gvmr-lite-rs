@@ -13,4 +13,7 @@ pub enum AppError {
 
     #[error("HTTP server failed: {0}")]
     Server(#[source] std::io::Error),
+
+    #[error("configuration error: {0}")]
+    Config(String),
 }

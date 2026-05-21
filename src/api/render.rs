@@ -25,7 +25,7 @@ use crate::{
         report_model::ReportEnvelope,
     },
     service::report_renderer::RenderResult,
-    xml::report_validator::parse_report_xml,
+    xml::report_validator::parse_report_xml_flexible,
 };
 
 #[utoipa::path(
@@ -149,11 +149,11 @@ pub async fn render_xml(
             .map_err(|err| ApiError::internal(format!("Render failed: {err}")))?,
 
         RendererBackend::Typst => {
-            let report = parse_report_xml(&req.report_xml).map_err(|err| {
+            let report = parse_report_xml_flexible(&req.report_xml).map_err(|err| {
                 ApiError::new(
                     StatusCode::UNPROCESSABLE_ENTITY,
                     "invalid_report_xml",
-                    format!("Report XML does not match ReportEnvelope: {err}"),
+                    format!("Report XML is not a valid report envelope or inner report: {err}"),
                 )
             })?;
 
@@ -161,11 +161,11 @@ pub async fn render_xml(
         }
 
         RendererBackend::NativePdf => {
-            let report = parse_report_xml(&req.report_xml).map_err(|err| {
+            let report = parse_report_xml_flexible(&req.report_xml).map_err(|err| {
                 ApiError::new(
                     StatusCode::UNPROCESSABLE_ENTITY,
                     "invalid_report_xml",
-                    format!("Report XML does not match ReportEnvelope: {err}"),
+                    format!("Report XML is not a valid report envelope or inner report: {err}"),
                 )
             })?;
 

@@ -1,6 +1,9 @@
 use serde_json::{Map, Value};
 
-use crate::{api::dto::render as dto, domain::report_model as domain};
+use crate::{
+    api::dto::render as dto,
+    domain::report_model::{self as domain, OciImage},
+};
 
 pub fn report_json_to_envelope(report_json: &dto::ReportJson) -> domain::ReportEnvelope {
     domain::ReportEnvelope {
@@ -180,6 +183,7 @@ fn report_result_from_dto(result: &dto::ReportResult) -> domain::ReportResult {
         severity: value_to_string(result.severity.as_ref()),
         qod: result.qod.as_ref().map(qod_from_value),
         description: result.description.clone(),
+        oci_image: Some(OciImage::default()), // Not present in the DTO, so we set it to an empty value
 
         original_threat: result.original_threat.clone(),
         original_severity: value_to_string(result.original_severity.as_ref()),

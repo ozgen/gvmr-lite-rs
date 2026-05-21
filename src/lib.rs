@@ -1,6 +1,8 @@
 pub mod api;
 pub mod app;
 pub mod auth;
+pub mod cli;
+pub mod cli_render;
 pub mod config;
 pub mod domain;
 pub mod infra;
@@ -16,9 +18,27 @@ use tracing::info;
 
 use crate::{
     app::{error::AppError, router::build_router, state::AppState},
+    cli::Cli,
+    cli_render::render_xml_file,
     config::settings::Settings,
     service::format_cache::FormatCache,
 };
+
+pub async fn run_cli_or_server(cli: Cli) -> Result<(), AppError> {
+    cli.validate().map_err(AppError::Config)?;
+
+    if cli.is_render_mode() {
+        let xml_path = cli.xml.as_ref().expect("validated cli xml path");
+        let renderer_type = cli.renderer_type.expect("validated cli renderer type");
+        let output_path = cli.output_path();
+
+        render_xml_file(renderer_type, xml_path, &output_path)?;
+
+        return Ok(());
+    }
+
+    run().await
+}
 
 pub async fn run() -> Result<(), AppError> {
     let settings = Settings::load()?;

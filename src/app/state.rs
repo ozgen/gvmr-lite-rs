@@ -6,7 +6,7 @@ use crate::{
     config::settings::Settings,
     service::{
         format_cache::FormatCache, json_report_renderer::JsonReportRenderer,
-        native_pdf::pdf_renderer::NativePdfRenderer, report_renderer::ReportRenderer,
+        native_pdf::NativePdfRenderer, report_renderer::ReportRenderer,
         typst::renderer::TypstReportRenderer, xml_report_renderer::XmlReportRenderer,
     },
 };

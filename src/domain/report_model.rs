@@ -90,6 +90,96 @@ pub struct InnerReport {
     pub report_format: Option<EmptyNode>,
 }
 
+impl InnerReport {
+    pub fn is_container_image_report(&self) -> bool {
+        self.task
+            .as_ref()
+            .and_then(|task| task.oci_image_target.as_ref())
+            .is_some()
+    }
+
+    pub fn is_agent_report(&self) -> bool {
+        self.task
+            .as_ref()
+            .and_then(|task| task.agent_group.as_ref())
+            .is_some()
+    }
+
+    pub fn auth_rows(&self) -> Vec<AuthRow> {
+        let mut rows = Vec::new();
+
+        for host in &self.hosts_detail {
+            let target = if self.is_agent_report() {
+                host.agent_id()
+                    .or_else(|| host.hostname())
+                    .or_else(|| host.address())
+                    .unwrap_or("")
+                    .to_string()
+            } else {
+                host.display_name().unwrap_or_default()
+            };
+
+            if target.trim().is_empty() {
+                continue;
+            }
+
+            for detail in &host.detail {
+                let Some(name) = detail.name.as_deref().map(str::trim) else {
+                    continue;
+                };
+
+                let Some(value) = detail
+                    .value
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                else {
+                    continue;
+                };
+
+                let Some((protocol, result)) = auth_detail_kind(name) else {
+                    continue;
+                };
+
+                rows.push(AuthRow {
+                    target: target.clone(),
+                    protocol,
+                    result,
+                    value: value.to_string(),
+                });
+            }
+        }
+
+        rows
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AuthRow {
+    pub target: String,
+    pub protocol: &'static str,
+    pub result: &'static str,
+    pub value: String,
+}
+
+fn auth_detail_kind(name: &str) -> Option<(&'static str, &'static str)> {
+    match name {
+        "Auth-SSH-Success" => Some(("SSH", "Success")),
+        "Auth-SSH-Failure" => Some(("SSH", "Failure")),
+
+        "Auth-SMB-Success" => Some(("SMB", "Success")),
+        "Auth-SMB-Failure" => Some(("SMB", "Failure")),
+
+        "Auth-ESXi-Success" => Some(("ESXi", "Success")),
+        "Auth-ESXi-Failure" => Some(("ESXi", "Failure")),
+
+        "Auth-SNMP-Success" => Some(("SNMP", "Success")),
+        "Auth-SNMP-Failure" => Some(("SNMP", "Failure")),
+
+        _ => None,
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
 pub struct EmptyNode {}
 
@@ -186,6 +276,45 @@ pub struct OciImageTarget {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
+pub struct OciImage {
+    pub name: Option<String>,
+    pub digest: Option<String>,
+    pub registry: Option<String>,
+    pub path: Option<String>,
+    pub short_name: Option<String>,
+}
+
+impl OciImage {
+    pub fn display_name(&self) -> Option<&str> {
+        self.short_name
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .or_else(|| {
+                self.name
+                    .as_deref()
+                    .and_then(|name| name.rsplit('/').next())
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+            })
+    }
+
+    pub fn full_name(&self) -> Option<&str> {
+        self.name
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+    }
+
+    pub fn digest(&self) -> Option<&str> {
+        self.digest
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
 pub struct Ports {
     #[serde(rename = "@start")]
     pub start: Option<String>,
@@ -235,6 +364,9 @@ pub struct ReportResult {
     pub host: Option<ResultHost>,
     pub port: Option<String>,
 
+    #[serde(default)]
+    pub oci_image: Option<OciImage>,
+
     pub nvt: Option<Nvt>,
     pub scan_nvt_version: Option<String>,
     pub threat: Option<String>,
@@ -247,6 +379,30 @@ pub struct ReportResult {
     pub compliance: Option<String>,
 }
 
+impl ReportResult {
+    pub fn target_address(&self) -> Option<&str> {
+        self.host.as_ref().and_then(ResultHost::address)
+    }
+
+    pub fn target_display_name(&self) -> Option<&str> {
+        self.oci_image
+            .as_ref()
+            .and_then(OciImage::display_name)
+            .or_else(|| self.host.as_ref().and_then(ResultHost::display_name))
+    }
+
+    pub fn image_full_name(&self) -> Option<&str> {
+        self.oci_image.as_ref().and_then(OciImage::full_name)
+    }
+
+    pub fn image_digest(&self) -> Option<&str> {
+        self.oci_image
+            .as_ref()
+            .and_then(OciImage::digest)
+            .or_else(|| self.target_address())
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
 pub struct ResultHost {
     #[serde(rename = "$text")]
@@ -254,6 +410,30 @@ pub struct ResultHost {
 
     pub asset: Option<AssetRef>,
     pub hostname: Option<String>,
+}
+
+impl ResultHost {
+    pub fn address(&self) -> Option<&str> {
+        self.text
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+    }
+
+    pub fn hostname(&self) -> Option<&str> {
+        self.hostname
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+    }
+
+    pub fn display_name(&self) -> Option<&str> {
+        self.hostname()
+            .and_then(|hostname| hostname.rsplit('/').next())
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .or_else(|| self.address())
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
@@ -391,6 +571,51 @@ pub struct ReportHost {
 
     #[serde(rename = "detail", default)]
     pub detail: Vec<HostDetail>,
+}
+
+impl ReportHost {
+    pub fn address(&self) -> Option<&str> {
+        self.ip
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+    }
+
+    pub fn detail_value(&self, name: &str) -> Option<&str> {
+        self.detail
+            .iter()
+            .find(|detail| {
+                detail
+                    .name
+                    .as_deref()
+                    .map(str::trim)
+                    .is_some_and(|value| value.eq_ignore_ascii_case(name))
+            })
+            .and_then(|detail| detail.value.as_deref())
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+    }
+
+    pub fn hostname(&self) -> Option<&str> {
+        self.detail_value("hostname")
+    }
+
+    pub fn agent_id(&self) -> Option<&str> {
+        self.detail_value("agentID")
+    }
+
+    pub fn architecture(&self) -> Option<&str> {
+        self.detail_value("ARCHITECTURE")
+    }
+
+    pub fn display_name(&self) -> Option<String> {
+        let address = self.address()?;
+
+        match self.hostname() {
+            Some(hostname) => Some(format!("{address} - {hostname}")),
+            None => Some(address.to_string()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]

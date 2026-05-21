@@ -237,7 +237,7 @@ async fn render_typst_report(
     output_name: Option<String>,
 ) -> Result<RenderResult, ApiError> {
     let renderer = state.typst_report_renderer.clone();
-    let filename = output_filename(output_name, &fmt, "technical-chunked-report");
+    let filename = output_filename(output_name, &fmt, "technical-typst-report");
     tracing::info!(
         filtered = ?report.report.result_count.as_ref().and_then(|c| c.filtered.as_deref()),
         full = ?report.report.result_count.as_ref().and_then(|c| c.full.as_deref()),

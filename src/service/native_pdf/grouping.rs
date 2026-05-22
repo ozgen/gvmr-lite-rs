@@ -6,7 +6,6 @@ use crate::{
 };
 
 use super::{
-    constants::MAX_FINDINGS,
     document::NativePdfDocument,
     target::{ReportTargetKind, image_display_name},
 };
@@ -21,7 +20,7 @@ impl<'a> NativePdfDocument<'a> {
     pub(crate) fn group_results_by_target(&self) -> BTreeMap<String, Vec<ReportResult>> {
         let mut grouped: BTreeMap<String, Vec<ReportResult>> = BTreeMap::new();
 
-        for result in all_results(self.report).into_iter().take(MAX_FINDINGS) {
+        for result in all_results(self.report) {
             grouped
                 .entry(self.target_key_for_result(result))
                 .or_default()

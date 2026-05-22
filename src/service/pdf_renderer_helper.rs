@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 
 use crate::domain::report_model::{ReportEnvelope, ReportResult};
 
-pub const MAX_FINDINGS: usize = 1_000;
 pub const MAX_FIELD_CHARS: usize = 6_000;
 
 pub fn all_results(report: &ReportEnvelope) -> Vec<&ReportResult> {
@@ -31,7 +30,7 @@ pub fn should_render_result(result: &ReportResult) -> bool {
 pub fn group_results_by_host(report: &ReportEnvelope) -> BTreeMap<String, Vec<ReportResult>> {
     let mut grouped: BTreeMap<String, Vec<ReportResult>> = BTreeMap::new();
 
-    for result in all_results(report).into_iter().take(MAX_FINDINGS) {
+    for result in all_results(report).into_iter() {
         grouped
             .entry(result_host(result).to_string())
             .or_default()

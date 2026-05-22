@@ -558,26 +558,3 @@ fn wrap_text_keeps_long_word_on_own_line() {
 
     assert_eq!(lines, vec!["short", "veryverylongword", "end"]);
 }
-
-#[test]
-fn group_results_by_host_limits_to_max_findings() {
-    let mut results_xml = String::new();
-
-    for index in 0..(MAX_FINDINGS + 10) {
-        results_xml.push_str(&format!(
-            r#"
-            <result>
-                <host>host-{index}</host>
-                <threat>High</threat>
-            </result>
-            "#
-        ));
-    }
-
-    let report = report_with_results(&results_xml);
-
-    let grouped = group_results_by_host(&report);
-    let total = grouped.values().map(Vec::len).sum::<usize>();
-
-    assert_eq!(total, MAX_FINDINGS);
-}

@@ -1,0 +1,18 @@
+[package]
+name = "gvmr-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "gvmr-cli"
+path = "src/main.rs"
+
+[dependencies]
+gvmr-core = { path = "../gvmr-core" }
+
+clap.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

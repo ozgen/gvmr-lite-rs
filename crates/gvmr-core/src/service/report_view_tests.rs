@@ -827,3 +827,450 @@ fn format_summary_datetime_formats_as_utc_summary_text() {
 fn format_summary_datetime_falls_back_to_clean_text_for_invalid_date() {
     assert_eq!(format_summary_datetime("bad\u{0000}date"), "baddate");
 }
+
+fn agent_report() -> ReportEnvelope {
+    parse_report(
+        r#"
+        <report id="outer-report">
+            <report id="inner-report">
+                <timestamp>2026-01-02T10:00:00Z</timestamp>
+                <timezone>UTC</timezone>
+                <timezone_abbrev>UTC</timezone_abbrev>
+                <scan_start>2026-01-02T09:00:00Z</scan_start>
+                <scan_end>2026-01-02T10:00:00Z</scan_end>
+
+                <task>
+                    <name>Agent Scan</name>
+                    <agent_group id="agent-group-id">
+                        <name>Linux Agents</name>
+                    </agent_group>
+                </task>
+
+                <filters>
+                    <keywords>
+                        <keyword>
+                            <column>result_hosts_only</column>
+                            <value>1</value>
+                        </keyword>
+                    </keywords>
+                </filters>
+
+                <results>
+                    <result id="result-1">
+                        <host>192.0.2.10</host>
+                        <name>Agent Finding A</name>
+                        <threat>High</threat>
+                    </result>
+                    <result id="result-2">
+                        <host>192.0.2.20</host>
+                        <name>Agent Finding B</name>
+                        <threat>Medium</threat>
+                    </result>
+                </results>
+            </report>
+        </report>
+        "#,
+    )
+}
+
+fn container_image_report() -> ReportEnvelope {
+    parse_report(
+        r#"
+        <report id="outer-report">
+            <report id="inner-report">
+                <timestamp>2026-01-02T10:00:00Z</timestamp>
+                <timezone>UTC</timezone>
+                <timezone_abbrev>UTC</timezone_abbrev>
+                <scan_start>2026-01-02T09:00:00Z</scan_start>
+                <scan_end>2026-01-02T10:00:00Z</scan_end>
+
+                <task>
+                    <name>Container Image Scan</name>
+                    <oci_image_target id="oci-target-id">
+                        <name>Container Image Target</name>
+                    </oci_image_target>
+                </task>
+
+                <filters>
+                    <keywords>
+                        <keyword>
+                            <column>result_hosts_only</column>
+                            <value>1</value>
+                        </keyword>
+                    </keywords>
+                </filters>
+
+                <results>
+                    <result id="result-1">
+                        <host>sha256:first-digest</host>
+                        <name>Image Finding A</name>
+                        <threat>Critical</threat>
+                        <oci_image>
+                            <name>registry.example.test/team/app:1.0</name>
+                            <digest>sha256:first-digest</digest>
+                            <registry>registry.example.test</registry>
+                            <path>team/app</path>
+                            <short_name>app:1.0</short_name>
+                        </oci_image>
+                    </result>
+                    <result id="result-2">
+                        <host>sha256:first-digest</host>
+                        <name>Image Finding B</name>
+                        <threat>Low</threat>
+                        <oci_image>
+                            <name>registry.example.test/team/app:1.0</name>
+                            <digest>sha256:first-digest</digest>
+                            <registry>registry.example.test</registry>
+                            <path>team/app</path>
+                            <short_name>app:1.0</short_name>
+                        </oci_image>
+                    </result>
+                    <result id="result-3">
+                        <host>sha256:second-digest</host>
+                        <name>Image Finding C</name>
+                        <threat>High</threat>
+                        <oci_image>
+                            <name>registry.example.test/team/worker:2.0</name>
+                            <digest>sha256:second-digest</digest>
+                            <registry>registry.example.test</registry>
+                            <path>team/worker</path>
+                            <short_name>worker:2.0</short_name>
+                        </oci_image>
+                    </result>
+                </results>
+            </report>
+        </report>
+        "#,
+    )
+}
+
+#[test]
+fn report_target_kind_detects_agent_report() {
+    let report = agent_report();
+
+    assert_eq!(
+        ReportTargetKind::from_report(&report.report),
+        ReportTargetKind::Agent
+    );
+
+    let view = ReportView::from_report(&report.report);
+
+    assert_eq!(view.target_kind(), ReportTargetKind::Agent);
+    assert_eq!(view.overview_column(), "Agent");
+    assert_eq!(view.results_section_title(), "Results per Agent");
+    assert_eq!(view.scan_start_label(), "Agent scan start");
+    assert_eq!(view.scan_end_label(), "Agent scan end");
+}
+
+#[test]
+fn report_target_kind_detects_container_image_report() {
+    let report = container_image_report();
+
+    assert_eq!(
+        ReportTargetKind::from_report(&report.report),
+        ReportTargetKind::ContainerImage
+    );
+
+    let view = ReportView::from_report(&report.report);
+
+    assert_eq!(view.target_kind(), ReportTargetKind::ContainerImage);
+    assert_eq!(view.overview_column(), "Image");
+    assert_eq!(view.results_section_title(), "Results per Image");
+    assert_eq!(view.scan_start_label(), "Image scan start");
+    assert_eq!(view.scan_end_label(), "Image scan end");
+}
+
+#[test]
+fn summary_text_uses_agent_wording_for_agent_report() {
+    let report = agent_report();
+
+    let view = ReportView::from_report(&report.report);
+    let summary = view.summary_text();
+
+    assert!(summary.contains("Agent Scan"));
+    assert!(summary.contains("for each agent"));
+}
+
+#[test]
+fn summary_text_uses_image_wording_for_container_image_report() {
+    let report = container_image_report();
+
+    let view = ReportView::from_report(&report.report);
+    let summary = view.summary_text();
+
+    assert!(summary.contains("Container Image Scan"));
+    assert!(summary.contains("for each image"));
+}
+
+#[test]
+fn filter_summary_text_uses_agent_wording_for_result_hosts_only() {
+    let report = agent_report();
+
+    let text = build_filter_summary_text(&report.report, ReportTargetKind::Agent);
+
+    assert!(text.contains("It only lists agents that produced issues."));
+}
+
+#[test]
+fn filter_summary_text_uses_image_wording_for_result_hosts_only() {
+    let report = container_image_report();
+
+    let text = build_filter_summary_text(&report.report, ReportTargetKind::ContainerImage);
+
+    assert!(text.contains("It only lists images that produced issues."));
+}
+
+#[test]
+fn group_results_by_target_groups_container_images_by_display_name() {
+    let report = container_image_report();
+
+    let grouped = group_results_by_target(&report.report, ReportTargetKind::ContainerImage);
+
+    assert_eq!(grouped.len(), 2);
+    assert_eq!(grouped["app:1.0"].len(), 2);
+    assert_eq!(grouped["worker:2.0"].len(), 1);
+}
+
+#[test]
+fn build_overview_rows_uses_container_image_display_names() {
+    let report = container_image_report();
+
+    let rows = build_overview_rows(&report.report, ReportTargetKind::ContainerImage);
+
+    assert_eq!(rows.len(), 3);
+
+    assert_eq!(rows[0], vec!["app:1.0", "1", "0", "0", "1", "0", "0"]);
+    assert_eq!(rows[1], vec!["worker:2.0", "0", "1", "0", "0", "0", "0"]);
+    assert_eq!(rows[2], vec!["Total", "1", "1", "0", "1", "0", "0"]);
+}
+
+#[test]
+fn result_target_name_uses_host_for_agent_results() {
+    let report = agent_report();
+    let result = first_result(&report);
+
+    assert_eq!(
+        result_target_name(result, ReportTargetKind::Agent),
+        "192.0.2.10"
+    );
+}
+
+#[test]
+fn result_target_name_uses_image_display_name_for_container_image_results() {
+    let report = container_image_report();
+    let result = first_result(&report);
+
+    assert_eq!(
+        result_target_name(result, ReportTargetKind::ContainerImage),
+        "app:1.0"
+    );
+}
+
+#[test]
+fn image_display_name_falls_back_to_host_when_image_metadata_is_missing() {
+    let report = report_with_results(
+        r#"
+        <result>
+            <host>sha256:fallback-digest</host>
+            <name>Fallback Image Finding</name>
+            <threat>High</threat>
+        </result>
+        "#,
+    );
+
+    let result = first_result(&report);
+
+    assert_eq!(image_display_name(result), "sha256:fallback-digest");
+}
+
+#[test]
+fn finding_title_uses_only_threat_for_agent_and_container_image() {
+    let agent = agent_report();
+    let agent_result = first_result(&agent);
+
+    assert_eq!(ReportTargetKind::Agent.finding_title(agent_result), "High");
+
+    let container = container_image_report();
+    let container_result = first_result(&container);
+
+    assert_eq!(
+        ReportTargetKind::ContainerImage.finding_title(container_result),
+        "Critical"
+    );
+}
+
+#[test]
+fn finding_title_uses_threat_and_port_for_host_report() {
+    let report = report_with_results(
+        r#"
+        <result>
+            <host>host-a</host>
+            <port>443/tcp</port>
+            <name>Host Finding</name>
+            <threat>High</threat>
+        </result>
+        "#,
+    );
+
+    let result = first_result(&report);
+
+    assert_eq!(ReportTargetKind::Host.finding_title(result), "High 443/tcp");
+}
+
+#[test]
+fn grouped_threats_orders_agent_or_container_threat_groups() {
+    let report = container_image_report();
+    let results = &report.report.results.as_ref().unwrap().result;
+
+    assert_eq!(grouped_threats(results), vec!["Critical", "High", "Low"]);
+}
+
+#[test]
+fn report_view_all_results_returns_only_renderable_results() {
+    let report = report_with_results(
+        r#"
+        <result>
+            <host>host-a</host>
+            <name>High Finding</name>
+            <threat>High</threat>
+        </result>
+        <result>
+            <host>host-b</host>
+            <name>Info Finding</name>
+            <threat>Info</threat>
+        </result>
+        <result>
+            <host>host-c</host>
+            <name>Low Finding</name>
+            <threat>Low</threat>
+        </result>
+        <result>
+            <host>host-d</host>
+            <name>False Positive Finding</name>
+            <threat>False Positive</threat>
+        </result>
+        "#,
+    );
+
+    let view = ReportView::from_report(&report.report);
+
+    let results = view.all_results();
+
+    assert_eq!(results.len(), 2);
+    assert_eq!(result_host(results[0]), "host-a");
+    assert_eq!(result_name(results[0]), "High Finding");
+    assert_eq!(result_host(results[1]), "host-c");
+    assert_eq!(result_name(results[1]), "Low Finding");
+}
+
+#[test]
+fn report_view_grouped_results_by_target_groups_host_results() {
+    let report = report_with_results(
+        r#"
+        <result>
+            <host>host-b</host>
+            <name>Finding B1</name>
+            <threat>High</threat>
+        </result>
+        <result>
+            <host>host-a</host>
+            <name>Finding A1</name>
+            <threat>Medium</threat>
+        </result>
+        <result>
+            <host>host-b</host>
+            <name>Finding B2</name>
+            <threat>Low</threat>
+        </result>
+        "#,
+    );
+
+    let view = ReportView::from_report(&report.report);
+
+    let grouped = view.grouped_results_by_target();
+
+    assert_eq!(view.target_kind(), ReportTargetKind::Host);
+    assert_eq!(grouped.len(), 2);
+
+    assert_eq!(grouped["host-a"].len(), 1);
+    assert_eq!(grouped["host-a"][0].name.as_deref(), Some("Finding A1"));
+
+    assert_eq!(grouped["host-b"].len(), 2);
+    assert_eq!(grouped["host-b"][0].name.as_deref(), Some("Finding B1"));
+    assert_eq!(grouped["host-b"][1].name.as_deref(), Some("Finding B2"));
+}
+
+#[test]
+fn report_view_grouped_results_by_target_groups_container_image_results() {
+    let report = container_image_report();
+
+    let view = ReportView::from_report(&report.report);
+
+    let grouped = view.grouped_results_by_target();
+
+    assert_eq!(view.target_kind(), ReportTargetKind::ContainerImage);
+    assert_eq!(grouped.len(), 2);
+
+    assert_eq!(grouped["app:1.0"].len(), 2);
+    assert_eq!(grouped["worker:2.0"].len(), 1);
+}
+
+#[test]
+fn report_view_overview_rows_returns_host_rows_and_total() {
+    let report = report_with_results(
+        r#"
+        <result>
+            <host>host-a</host>
+            <name>Critical Finding</name>
+            <threat>Critical</threat>
+        </result>
+        <result>
+            <host>host-a</host>
+            <name>High Finding</name>
+            <threat>High</threat>
+        </result>
+        <result>
+            <host>host-b</host>
+            <name>Medium Finding</name>
+            <threat>Medium</threat>
+        </result>
+        <result>
+            <host>host-b</host>
+            <name>Low Finding</name>
+            <threat>Low</threat>
+        </result>
+        <result>
+            <host>host-b</host>
+            <name>Log Finding</name>
+            <threat>Log</threat>
+        </result>
+        "#,
+    );
+
+    let view = ReportView::from_report(&report.report);
+
+    let rows = view.overview_rows();
+
+    assert_eq!(view.target_kind(), ReportTargetKind::Host);
+    assert_eq!(rows.len(), 3);
+
+    assert_eq!(rows[0], vec!["host-a", "1", "1", "0", "0", "0", "0"]);
+    assert_eq!(rows[1], vec!["host-b", "0", "0", "1", "1", "1", "0"]);
+    assert_eq!(rows[2], vec!["Total", "1", "1", "1", "1", "1", "0"]);
+}
+
+#[test]
+fn report_view_overview_rows_returns_container_image_rows_and_total() {
+    let report = container_image_report();
+
+    let view = ReportView::from_report(&report.report);
+
+    let rows = view.overview_rows();
+
+    assert_eq!(view.target_kind(), ReportTargetKind::ContainerImage);
+    assert_eq!(rows.len(), 3);
+
+    assert_eq!(rows[0], vec!["app:1.0", "1", "0", "0", "1", "0", "0"]);
+    assert_eq!(rows[1], vec!["worker:2.0", "0", "1", "0", "0", "0", "0"]);
+    assert_eq!(rows[2], vec!["Total", "1", "1", "0", "1", "0", "0"]);
+}

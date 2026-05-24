@@ -9,7 +9,6 @@ mod layout;
 mod output;
 mod overview;
 mod renderer;
-mod target;
 mod toc;
 
 pub use error::NativePdfRenderError;

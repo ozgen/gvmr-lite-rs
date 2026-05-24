@@ -1,14 +1,10 @@
 use std::collections::BTreeMap;
 
-use crate::{
-    domain::report_model::{ReportHost, ReportResult},
-    service::pdf_renderer_helper::{all_results, result_host},
-};
+use crate::domain::report_model::{ReportHost, ReportResult};
 
-use super::{
-    document::NativePdfDocument,
-    target::{ReportTargetKind, image_display_name},
-};
+use crate::service::report_view::{ReportTargetKind, all_results, image_display_name, result_host};
+
+use super::document::NativePdfDocument;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct FindingKey {
@@ -20,7 +16,7 @@ impl<'a> NativePdfDocument<'a> {
     pub(crate) fn group_results_by_target(&self) -> BTreeMap<String, Vec<ReportResult>> {
         let mut grouped: BTreeMap<String, Vec<ReportResult>> = BTreeMap::new();
 
-        for result in all_results(self.report) {
+        for result in all_results(&self.report.report) {
             grouped
                 .entry(self.target_key_for_result(result))
                 .or_default()
@@ -31,7 +27,7 @@ impl<'a> NativePdfDocument<'a> {
     }
 
     pub(crate) fn target_key_for_result(&self, result: &ReportResult) -> String {
-        match self.target_kind {
+        match self.target {
             ReportTargetKind::Host => result_host(result).to_string(),
 
             ReportTargetKind::ContainerImage => image_display_name(result),

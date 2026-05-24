@@ -4,6 +4,7 @@ pub mod native_pdf;
 pub mod pdf_renderer_helper;
 pub mod report_json_injector;
 pub mod report_renderer;
+pub mod report_view;
 pub mod report_xml_builder;
 pub mod script_render_runner;
 pub mod typst;

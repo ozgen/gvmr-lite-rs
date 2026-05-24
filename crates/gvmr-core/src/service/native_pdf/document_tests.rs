@@ -1,9 +1,8 @@
 use fpdf::{Pdf, Unit};
 
 use crate::{
-    domain::report_model::ReportEnvelope,
-    service::native_pdf::{document::NativePdfDocument, target::ReportTargetKind},
-    xml::report_validator::parse_report_xml_flexible,
+    domain::report_model::ReportEnvelope, service::native_pdf::document::NativePdfDocument,
+    service::report_view::ReportTargetKind, xml::report_validator::parse_report_xml_flexible,
 };
 
 fn test_report() -> ReportEnvelope {
@@ -11,6 +10,9 @@ fn test_report() -> ReportEnvelope {
         r#"
         <report>
             <report id="inner-report-id">
+                <timestamp>2024-01-02T05:04:05Z</timestamp>
+                <timezone>GMT</timezone>
+                <timezone_abbrev>UTC</timezone_abbrev>
                 <scan_start>2024-01-02T03:04:05Z</scan_start>
                 <scan_end>2024-01-02T04:04:05Z</scan_end>
                 <scan_run_status>Done</scan_run_status>
@@ -31,6 +33,7 @@ fn test_report() -> ReportEnvelope {
     )
     .expect("test report XML should parse")
 }
+
 #[test]
 fn new_initializes_pdf_document_state() {
     let report = test_report();
@@ -51,12 +54,27 @@ fn new_initializes_pdf_document_state() {
 }
 
 #[test]
-fn new_sets_target_kind_from_report() {
+fn new_initializes_report_view() {
     let report = test_report();
 
     let document = NativePdfDocument::new(&report);
 
-    assert_eq!(document.target_kind, ReportTargetKind::Host);
+    assert_eq!(
+        document.view.report().id.as_deref(),
+        Some("inner-report-id")
+    );
+    assert_eq!(document.view.task_name(), "Test Task");
+    assert_eq!(document.view.report_date(), "January 2, 2024");
+}
+
+#[test]
+fn new_sets_target_from_report() {
+    let report = test_report();
+
+    let document = NativePdfDocument::new(&report);
+
+    assert_eq!(document.target, ReportTargetKind::Host);
+    assert_eq!(document.view.target_kind(), ReportTargetKind::Host);
 }
 
 #[test]

@@ -2,8 +2,9 @@ use std::collections::BTreeMap;
 
 use crate::{
     domain::report_model::ReportEnvelope,
-    service::native_pdf::{
-        document::NativePdfDocument, grouping::FindingKey, target::ReportTargetKind,
+    service::{
+        native_pdf::{document::NativePdfDocument, grouping::FindingKey},
+        report_view::ReportTargetKind,
     },
     xml::report_validator::parse_report_xml_flexible,
 };
@@ -202,7 +203,7 @@ fn group_results_by_target_groups_results_by_host_target() {
     let report = host_report();
     let document = NativePdfDocument::new(&report);
 
-    assert!(matches!(document.target_kind, ReportTargetKind::Host));
+    assert_eq!(document.target, ReportTargetKind::Host);
 
     let grouped = document.group_results_by_target();
 
@@ -221,7 +222,7 @@ fn target_key_for_result_uses_host_when_target_kind_is_host() {
     let document = NativePdfDocument::new(&report);
     let result = &report.report.results.as_ref().unwrap().result[0];
 
-    assert!(matches!(document.target_kind, ReportTargetKind::Host));
+    assert_eq!(document.target, ReportTargetKind::Host);
     assert_eq!(document.target_key_for_result(result), "192.0.2.20");
 }
 
@@ -295,7 +296,7 @@ fn target_key_for_result_uses_agent_id_when_target_kind_is_agent() {
     let document = NativePdfDocument::new(&report);
     let result = &report.report.results.as_ref().unwrap().result[0];
 
-    assert!(matches!(document.target_kind, ReportTargetKind::Agent));
+    assert_eq!(document.target, ReportTargetKind::Agent);
     assert_eq!(document.target_key_for_result(result), "agent-a");
 }
 
@@ -303,7 +304,7 @@ fn target_key_for_result_uses_agent_id_when_target_kind_is_agent() {
 fn target_key_for_result_falls_back_to_host_when_agent_id_is_missing() {
     let report = host_report();
     let mut document = NativePdfDocument::new(&report);
-    document.target_kind = ReportTargetKind::Agent;
+    document.target = ReportTargetKind::Agent;
 
     let result = &report.report.results.as_ref().unwrap().result[0];
 
@@ -315,7 +316,7 @@ fn group_results_by_target_groups_results_by_agent_id() {
     let report = agent_report();
     let document = NativePdfDocument::new(&report);
 
-    assert!(matches!(document.target_kind, ReportTargetKind::Agent));
+    assert_eq!(document.target, ReportTargetKind::Agent);
 
     let grouped = document.group_results_by_target();
 
@@ -334,10 +335,7 @@ fn target_key_for_result_uses_image_display_name_when_target_kind_is_container_i
     let document = NativePdfDocument::new(&report);
     let result = &report.report.results.as_ref().unwrap().result[0];
 
-    assert!(matches!(
-        document.target_kind,
-        ReportTargetKind::ContainerImage
-    ));
+    assert_eq!(document.target, ReportTargetKind::ContainerImage);
     assert_eq!(document.target_key_for_result(result), "app:1.0");
 }
 
@@ -346,10 +344,7 @@ fn group_results_by_target_groups_results_by_container_image() {
     let report = container_image_report();
     let document = NativePdfDocument::new(&report);
 
-    assert!(matches!(
-        document.target_kind,
-        ReportTargetKind::ContainerImage
-    ));
+    assert_eq!(document.target, ReportTargetKind::ContainerImage);
 
     let grouped = document.group_results_by_target();
 

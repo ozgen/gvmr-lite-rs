@@ -4,20 +4,22 @@ use fpdf::{Fpdf, Orientation, PageSize, Pdf, RGB, Unit, UnitVec2};
 
 use crate::domain::report_model::ReportEnvelope;
 
+use crate::service::report_view::{ReportTargetKind, ReportView};
+
 use super::{
     constants::{
         BOTTOM_MARGIN_MM, CONTENT_WIDTH_MM, LEFT_MARGIN_MM, RIGHT_MARGIN_MM, TOP_MARGIN_MM,
     },
     error::NativePdfRenderError,
     grouping::FindingKey,
-    target::ReportTargetKind,
     toc::TocEntry,
 };
 
 pub(crate) struct NativePdfDocument<'a> {
     pub(crate) pdf: Fpdf<'a>,
     pub(crate) report: &'a ReportEnvelope,
-    pub(crate) target_kind: ReportTargetKind,
+    pub(crate) view: ReportView<'a>,
+    pub(crate) target: ReportTargetKind,
     pub(crate) host_links: BTreeMap<String, usize>,
     pub(crate) finding_links: BTreeMap<FindingKey, usize>,
     pub(crate) toc: Vec<TocEntry>,
@@ -94,10 +96,14 @@ impl<'a> NativePdfDocument<'a> {
             pdf.set_text_color(RGB::new(0, 0, 0));
         });
 
+        let view = ReportView::from_report(&report.report);
+        let target = view.target_kind();
+
         Self {
             pdf,
             report,
-            target_kind: ReportTargetKind::from_report(report),
+            view,
+            target,
             host_links: BTreeMap::new(),
             finding_links: BTreeMap::new(),
             toc: Vec::new(),

@@ -977,5 +977,5 @@ fn native_pdf_temp_path() -> PathBuf {
 }
 
 #[cfg(test)]
-#[path = "native_pdf_renderer_tests.rs"]
+#[path = "pdf_renderer_tests.rs"]
 mod native_pdf_renderer_tests;

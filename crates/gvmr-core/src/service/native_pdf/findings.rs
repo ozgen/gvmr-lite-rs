@@ -2,9 +2,10 @@ use fpdf::{Pdf, RGB, Unit};
 
 use crate::{
     domain::report_model::ReportResult,
-    service::pdf_renderer_helper::{
-        clean_text, detection_method, nvt_tag, result_name, result_qod, result_references,
-        result_severity, result_solution, result_threat, severity_color, truncate_text,
+    service::pdf_renderer_helper::{clean_text, severity_color, truncate_text},
+    service::report_view::{
+        detection_method, result_affected, result_impact, result_insight, result_name, result_qod,
+        result_references, result_severity, result_solution, result_summary, result_threat,
     },
 };
 
@@ -62,7 +63,7 @@ impl<'a> NativePdfDocument<'a> {
 
         self.pdf.set_text_color(RGB::new(0, 0, 0));
 
-        self.write_box_field("Summary", nvt_tag(result, "summary"));
+        self.write_box_field("Summary", result_summary(result));
 
         if !result_qod(result).is_empty() {
             self.write_box_field(
@@ -73,10 +74,10 @@ impl<'a> NativePdfDocument<'a> {
 
         self.write_box_field("Vulnerability Detection Result", result.description.clone());
 
-        self.write_box_field("Impact", nvt_tag(result, "impact"));
+        self.write_box_field("Impact", result_impact(result));
         self.write_box_field("Solution", result_solution(result));
-        self.write_box_field("Affected Software/OS", nvt_tag(result, "affected"));
-        self.write_box_field("Vulnerability Insight", nvt_tag(result, "insight"));
+        self.write_box_field("Affected Software/OS", result_affected(result));
+        self.write_box_field("Vulnerability Insight", result_insight(result));
         self.write_box_field("Vulnerability Detection Method", detection_method(result));
 
         let refs = result_references(result);
@@ -351,5 +352,5 @@ fn box_field_lines(title: &str, value: &str, max_chars: usize) -> Vec<BoxFieldLi
 }
 
 #[cfg(test)]
-#[path = "finding_tests.rs"]
-mod finding_tests;
+#[path = "findings_tests.rs"]
+mod findings_tests;

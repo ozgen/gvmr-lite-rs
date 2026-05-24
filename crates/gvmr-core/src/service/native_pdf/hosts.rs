@@ -1,17 +1,17 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use fpdf::{Pdf, RGB, Unit};
 
 use crate::{
     domain::report_model::ReportResult,
-    service::pdf_renderer_helper::{clean_text, result_port, result_threat},
+    service::pdf_renderer_helper::clean_text,
+    service::report_view::{ReportTargetKind, grouped_threats, result_port, result_threat},
 };
 
 use super::{
     constants::{A4_WIDTH_MM, CONTENT_WIDTH_MM},
     document::NativePdfDocument,
     grouping::FindingKey,
-    target::ReportTargetKind,
 };
 
 impl<'a> NativePdfDocument<'a> {
@@ -28,10 +28,7 @@ impl<'a> NativePdfDocument<'a> {
         self.set_toc_page("2", page);
         self.set_link_here(self.toc_link("2"), page);
 
-        self.write_heading(
-            &format!("2 {}", self.target_kind.results_section_title()),
-            1,
-        );
+        self.write_heading(&format!("2 {}", self.target.results_section_title()), 1);
 
         for (target_index, (target, results)) in grouped.iter().enumerate() {
             let target_number = format!("2.{}", target_index + 1);
@@ -50,7 +47,7 @@ impl<'a> NativePdfDocument<'a> {
             self.write_target_scan_times(target, results);
             self.write_service_table(target, results);
 
-            if self.target_kind.is_grouped_by_threat() {
+            if self.target.is_grouped_by_threat() {
                 self.write_container_findings_by_threat(&target_number, target, results);
             } else {
                 self.write_host_findings(&target_number, target, results);
@@ -84,11 +81,7 @@ impl<'a> NativePdfDocument<'a> {
             self.pdf.cell_format(
                 Unit::mm(CONTENT_WIDTH_MM),
                 Unit::mm(5.0),
-                &format!(
-                    "{} {}",
-                    self.target_kind.scan_start_label(),
-                    clean_text(start)
-                ),
+                &format!("{} {}", self.target.scan_start_label(), clean_text(start)),
                 "",
                 1,
                 "L",
@@ -107,7 +100,7 @@ impl<'a> NativePdfDocument<'a> {
             self.pdf.cell_format(
                 Unit::mm(CONTENT_WIDTH_MM),
                 Unit::mm(5.0),
-                &format!("{} {}", self.target_kind.scan_end_label(), clean_text(end)),
+                &format!("{} {}", self.target.scan_end_label(), clean_text(end)),
                 "",
                 1,
                 "L",
@@ -121,7 +114,7 @@ impl<'a> NativePdfDocument<'a> {
     }
 
     pub(crate) fn write_target_metadata(&mut self, results: &[ReportResult]) {
-        if self.target_kind != ReportTargetKind::ContainerImage {
+        if self.target != ReportTargetKind::ContainerImage {
             return;
         }
 
@@ -163,7 +156,7 @@ impl<'a> NativePdfDocument<'a> {
     }
 
     pub(crate) fn write_service_table(&mut self, target: &str, results: &[ReportResult]) {
-        if self.target_kind.is_grouped_by_threat() {
+        if self.target.is_grouped_by_threat() {
             self.write_container_service_table(target, results);
         } else {
             self.write_host_service_table(target, results);
@@ -207,7 +200,7 @@ impl<'a> NativePdfDocument<'a> {
 
         self.pdf.set_font("Helvetica", "", Unit::pt(8.0));
 
-        for (threat_index, threat) in grouped_container_threats(results).iter().enumerate() {
+        for (threat_index, threat) in grouped_threats(results).iter().enumerate() {
             self.ensure_space(8.0);
             self.pdf.set_x(Unit::mm(x));
 
@@ -375,12 +368,7 @@ impl<'a> NativePdfDocument<'a> {
     fn write_host_findings(&mut self, target_number: &str, target: &str, results: &[ReportResult]) {
         for (result_index, result) in results.iter().enumerate() {
             let finding_number = format!("{target_number}.{}", result_index + 1);
-
-            let title = format!(
-                "{} {}",
-                finding_number,
-                self.target_kind.finding_title(result),
-            );
+            let title = format!("{finding_number} {}", self.target.finding_title(result));
 
             let page = self.pdf.page_no();
             self.set_toc_page(&finding_number, page);
@@ -399,7 +387,7 @@ impl<'a> NativePdfDocument<'a> {
     }
 
     pub(crate) fn target_display_name(&self, target: &str, results: &[ReportResult]) -> String {
-        match self.target_kind {
+        match self.target {
             ReportTargetKind::Host => target.to_string(),
 
             ReportTargetKind::Agent => target.to_string(),
@@ -419,20 +407,6 @@ impl<'a> NativePdfDocument<'a> {
         self.host_detail_for_result(result)
             .and_then(|host| host.architecture())
     }
-}
-
-fn grouped_container_threats(results: &[ReportResult]) -> Vec<String> {
-    let mut seen = BTreeSet::new();
-
-    for result in results {
-        let threat = result_threat(result).trim();
-
-        if !threat.is_empty() {
-            seen.insert(threat.to_string());
-        }
-    }
-
-    ordered_threats_from_set(seen)
 }
 
 fn group_results_by_threat(results: &[ReportResult]) -> Vec<(String, Vec<ReportResult>)> {
@@ -463,20 +437,6 @@ fn group_results_by_threat(results: &[ReportResult]) -> Vec<(String, Vec<ReportR
     ordered.extend(grouped);
 
     ordered
-}
-
-fn ordered_threats_from_set(mut seen: BTreeSet<String>) -> Vec<String> {
-    let order = ["Critical", "High", "Medium", "Low", "Log"];
-    let mut grouped = Vec::new();
-
-    for threat in order {
-        if seen.remove(threat) {
-            grouped.push(threat.to_string());
-        }
-    }
-
-    grouped.extend(seen);
-    grouped
 }
 
 fn shorten_image_display_name(name: &str, arch_suffix: Option<&str>, max_chars: usize) -> String {

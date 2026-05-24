@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use fpdf::{Pdf, RGB, Unit};
 
-use crate::service::{native_pdf::target::grouped_threats, pdf_renderer_helper::clean_text};
+use crate::{service::pdf_renderer_helper::clean_text, service::report_view::grouped_threats};
 
 use super::{document::NativePdfDocument, grouping::FindingKey};
 
@@ -32,7 +32,7 @@ impl<'a> NativePdfDocument<'a> {
         let results_link = self.pdf.add_link();
         self.add_toc_entry(
             "2",
-            self.target_kind.results_section_title(),
+            self.target.results_section_title(),
             1,
             results_link,
             known_pages,
@@ -50,7 +50,7 @@ impl<'a> NativePdfDocument<'a> {
 
             self.add_toc_entry(&host_number, &display_host, 2, host_link, known_pages);
 
-            if self.target_kind.is_grouped_by_threat() {
+            if self.target.is_grouped_by_threat() {
                 for (threat_index, threat) in grouped_threats(results).iter().enumerate() {
                     let finding_number = format!("{host_number}.{}", threat_index + 1);
                     let finding_link = self.pdf.add_link();
@@ -76,7 +76,7 @@ impl<'a> NativePdfDocument<'a> {
 
                     self.finding_links.insert(key, finding_link);
 
-                    let title = self.target_kind.finding_title(result);
+                    let title = self.target.finding_title(result);
 
                     self.add_toc_entry(&finding_number, &title, 3, finding_link, known_pages);
                 }
@@ -246,7 +246,7 @@ fn shorten_toc_title_for_width(value: &str, max_width_mm: f64, font_size_pt: f64
 }
 
 fn estimated_text_width_mm(value: &str, font_size_pt: f64) -> f64 {
-    let average_char_width_mm = font_size_pt * 0.352_778 * 0.55;
+    let average_char_width_mm = font_size_pt * 0.352_778 * 0.48;
 
     value.chars().count() as f64 * average_char_width_mm
 }

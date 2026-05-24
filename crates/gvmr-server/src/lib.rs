@@ -7,7 +7,7 @@ pub mod telemetry;
 use std::net::SocketAddr;
 
 use tokio::net::TcpListener;
-use tracing::info;
+use tracing::{Instrument, info};
 
 use gvmr_core::{config::settings::Settings, service::format_cache::FormatCache};
 
@@ -18,16 +18,26 @@ pub async fn run() -> Result<(), AppError> {
 
     telemetry::init(&settings);
 
-    let app_state = build_app_state(settings.clone())?;
-    let app = build_router(app_state);
+    let service_span = tracing::info_span!(
+        "service",
+        service = "gvmr-server",
+        version = env!("CARGO_PKG_VERSION"),
+    );
 
-    let listener = bind_listener(settings.port).await?;
+    async move {
+        let app_state = build_app_state(settings.clone())?;
+        let app = build_router(app_state);
 
-    info!("starting HTTP server");
+        let listener = bind_listener(settings.port).await?;
 
-    axum::serve(listener, app).await.map_err(AppError::Server)?;
+        info!("starting HTTP server");
 
-    Ok(())
+        axum::serve(listener, app).await.map_err(AppError::Server)?;
+
+        Ok(())
+    }
+    .instrument(service_span)
+    .await
 }
 
 pub(crate) fn build_app_state(settings: Settings) -> Result<AppState, AppError> {

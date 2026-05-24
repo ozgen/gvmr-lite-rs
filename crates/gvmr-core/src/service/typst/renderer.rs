@@ -14,6 +14,8 @@ use crate::{
 
 use super::workdir::create_typst_work_dir;
 
+const DEFAULT_TYPST_CPU_SECONDS: u64 = 30;
+
 #[derive(Debug, Clone)]
 pub struct TypstReportRenderer {
     source_builder: TypstSourceBuilder,
@@ -107,26 +109,18 @@ impl TypstReportRenderer {
         typst_path: &Path,
         pdf_path: &Path,
     ) -> Result<std::process::Output, TypstRenderError> {
-        let mut command = Command::new("systemd-run");
-
-        if self.process_limits.use_user_scope {
-            command.arg("--user");
-        }
-
-        command
-            .arg("--scope")
-            .arg("-p")
-            .arg(format!("MemoryMax={}", self.process_limits.memory_max))
-            .arg("-p")
-            .arg(format!("CPUQuota={}", self.process_limits.cpu_quota))
-            .arg("-p")
-            .arg(format!("TasksMax={}", self.process_limits.tasks_max))
+        Command::new("prlimit")
+            .arg(format!(
+                "--cpu={}",
+                cpu_seconds_from_quota(&self.process_limits.cpu_quota)
+            ))
+            .arg("--")
             .arg("typst")
             .arg("compile")
             .arg(typst_path)
-            .arg(pdf_path);
-
-        command.output().map_err(TypstRenderError::RunTypst)
+            .arg(pdf_path)
+            .output()
+            .map_err(TypstRenderError::RunTypst)
     }
 
     fn read_pdf(&self, pdf_path: &Path) -> Result<Vec<u8>, TypstRenderError> {
@@ -135,6 +129,19 @@ impl TypstReportRenderer {
             source,
         })
     }
+}
+
+fn cpu_seconds_from_quota(cpu_quota: &str) -> u64 {
+    let digits: String = cpu_quota
+        .chars()
+        .take_while(|ch| ch.is_ascii_digit())
+        .collect();
+
+    digits
+        .parse::<u64>()
+        .ok()
+        .filter(|seconds| *seconds > 0)
+        .unwrap_or(DEFAULT_TYPST_CPU_SECONDS)
 }
 
 #[cfg(test)]

@@ -131,22 +131,26 @@ impl<'a> NativePdfDocument<'a> {
 
         self.ensure_space(row_h + 1.0);
 
-        let number_x = 25.0;
-        let title_x = 45.0;
-        let dots_x = 135.0;
+        let number_x = 14.0;
+        let title_x = 32.0;
+        let dots_x = 95.0;
         let page_x = 184.0;
 
         let number_w = title_x - number_x - 2.0;
-        let title_w = dots_x - title_x - 2.0;
-        let dots_w = page_x - dots_x - 2.0;
+        let title_w = dots_x - title_x - 4.0;
+        let dots_w = page_x - dots_x - 6.0;
         let page_w = 9.0;
 
-        let font_size = if entry.level >= 3 { 8.0 } else { 8.5 };
+        let title_font_size = if entry.level >= 3 { 8.0 } else { 8.5 };
+        let dots_font_size = 8.5;
+
         let y = self.pdf.get_y();
 
-        self.pdf.set_font("Helvetica", "", Unit::pt(font_size));
+        self.pdf
+            .set_font("Helvetica", "", Unit::pt(title_font_size));
 
         self.pdf.set_text_color(RGB::new(0, 90, 180));
+
         self.pdf.set_xy(Unit::mm(number_x), y);
         self.pdf.cell_format(
             Unit::mm(number_w),
@@ -160,11 +164,14 @@ impl<'a> NativePdfDocument<'a> {
             "",
         );
 
+        let title = clean_text(&entry.title);
+        let title = shorten_toc_title_for_width(&title, title_w, title_font_size);
+
         self.pdf.set_xy(Unit::mm(title_x), y);
         self.pdf.cell_format(
             Unit::mm(title_w),
             Unit::mm(row_h),
-            &clean_text(&entry.title),
+            &title,
             "",
             0,
             "L",
@@ -174,11 +181,13 @@ impl<'a> NativePdfDocument<'a> {
         );
 
         self.pdf.set_text_color(RGB::new(0, 0, 0));
+        self.pdf.set_font("Helvetica", "", Unit::pt(dots_font_size));
+
         self.pdf.set_xy(Unit::mm(dots_x), y);
         self.pdf.cell_format(
             Unit::mm(dots_w),
             Unit::mm(row_h),
-            "................................................",
+            &toc_leader_dots(),
             "",
             0,
             "R",
@@ -186,6 +195,9 @@ impl<'a> NativePdfDocument<'a> {
             0,
             "",
         );
+
+        self.pdf
+            .set_font("Helvetica", "", Unit::pt(title_font_size));
 
         self.pdf.set_xy(Unit::mm(page_x), y);
         self.pdf.cell_format(
@@ -202,4 +214,39 @@ impl<'a> NativePdfDocument<'a> {
 
         self.pdf.set_y(y + Unit::mm(row_h));
     }
+}
+
+fn toc_leader_dots() -> String {
+    ".".repeat(100)
+}
+
+fn shorten_toc_title_for_width(value: &str, max_width_mm: f64, font_size_pt: f64) -> String {
+    if estimated_text_width_mm(value, font_size_pt) <= max_width_mm {
+        return value.to_string();
+    }
+
+    let ellipsis = "…";
+    let mut result = String::new();
+
+    for ch in value.chars() {
+        let candidate = format!("{result}{ch}{ellipsis}");
+
+        if estimated_text_width_mm(&candidate, font_size_pt) > max_width_mm {
+            break;
+        }
+
+        result.push(ch);
+    }
+
+    if result.is_empty() {
+        ellipsis.to_string()
+    } else {
+        format!("{result}{ellipsis}")
+    }
+}
+
+fn estimated_text_width_mm(value: &str, font_size_pt: f64) -> f64 {
+    let average_char_width_mm = font_size_pt * 0.352_778 * 0.55;
+
+    value.chars().count() as f64 * average_char_width_mm
 }

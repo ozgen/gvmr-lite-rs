@@ -493,8 +493,8 @@ fn summary_text_contains_task_timezone_and_scan_times() {
 
     assert!(summary.contains("Test Scan"));
     assert!(summary.contains("UTC"));
-    assert!(summary.contains("2026-01-02T09:00:00Z"));
-    assert!(summary.contains("2026-01-02T10:00:00Z"));
+    assert!(summary.contains("Fri Jan 2 09:00:00 2026 UTC"));
+    assert!(summary.contains("Fri Jan 2 10:00:00 2026 UTC"));
 }
 
 #[test]

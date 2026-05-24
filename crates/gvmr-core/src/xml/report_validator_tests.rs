@@ -1,3 +1,7 @@
+use crate::xml::report_validator::{
+    parse_inner_report_xml, parse_report_xml_flexible, validate_report_xml_flexible,
+};
+
 use super::{ReportXmlValidationError, parse_report_xml, validate_report_xml};
 
 #[test]
@@ -315,6 +319,225 @@ fn rejects_xml_with_multiple_root_elements() {
     ));
 }
 
+#[test]
+fn validate_flexible_accepts_valid_report_envelope() {
+    let xml = valid_report_xml();
+
+    let result = validate_report_xml_flexible(xml);
+
+    assert_eq!(result, Ok(()));
+}
+
+#[test]
+fn parse_flexible_accepts_valid_report_envelope_and_returns_model() {
+    let xml = valid_report_xml();
+
+    let envelope = parse_report_xml_flexible(xml).unwrap();
+
+    assert_eq!(envelope.report.id.as_deref(), Some("inner-report"));
+}
+
+#[test]
+fn parse_inner_report_accepts_valid_report_envelope_and_returns_inner_report() {
+    let xml = valid_report_xml();
+
+    let inner = parse_inner_report_xml(xml).unwrap();
+
+    assert_eq!(inner.id.as_deref(), Some("inner-report"));
+}
+
+#[test]
+fn validate_flexible_accepts_valid_inner_report_directly() {
+    let xml = valid_inner_report_xml();
+
+    let result = validate_report_xml_flexible(xml);
+
+    assert_eq!(result, Ok(()));
+}
+
+#[test]
+fn parse_flexible_accepts_valid_inner_report_directly_and_wraps_it_in_envelope() {
+    let xml = valid_inner_report_xml();
+
+    let envelope = parse_report_xml_flexible(xml).unwrap();
+
+    assert_eq!(envelope.report.id.as_deref(), Some("inner-report"));
+}
+
+#[test]
+fn parse_inner_report_accepts_valid_inner_report_directly() {
+    let xml = valid_inner_report_xml();
+
+    let inner = parse_inner_report_xml(xml).unwrap();
+
+    assert_eq!(inner.id.as_deref(), Some("inner-report"));
+}
+
+#[test]
+fn strict_validate_still_rejects_valid_inner_report_directly() {
+    let xml = valid_inner_report_xml();
+
+    let result = validate_report_xml(xml);
+
+    assert_eq!(
+        result,
+        Err(ReportXmlValidationError::InvalidStructure(
+            "expected report envelope with nested inner report".to_string()
+        ))
+    );
+}
+
+#[test]
+fn strict_parse_still_rejects_valid_inner_report_directly() {
+    let xml = valid_inner_report_xml();
+
+    let result = parse_report_xml(xml);
+
+    assert_eq!(
+        result,
+        Err(ReportXmlValidationError::InvalidStructure(
+            "expected report envelope with nested inner report".to_string()
+        ))
+    );
+}
+
+#[test]
+fn validate_flexible_rejects_inner_report_with_missing_id() {
+    let xml = r#"
+        <report>
+            <scan_run_status>Done</scan_run_status>
+        </report>
+    "#;
+
+    let result = validate_report_xml_flexible(xml);
+
+    assert_eq!(
+        result,
+        Err(ReportXmlValidationError::InvalidStructure(
+            "inner report id is missing".to_string()
+        ))
+    );
+}
+
+#[test]
+fn parse_flexible_rejects_inner_report_with_missing_id() {
+    let xml = r#"
+        <report>
+            <scan_run_status>Done</scan_run_status>
+        </report>
+    "#;
+
+    let result = parse_report_xml_flexible(xml);
+
+    assert_eq!(
+        result,
+        Err(ReportXmlValidationError::InvalidStructure(
+            "inner report id is missing".to_string()
+        ))
+    );
+}
+
+#[test]
+fn parse_inner_report_rejects_inner_report_with_missing_id() {
+    let xml = r#"
+        <report>
+            <scan_run_status>Done</scan_run_status>
+        </report>
+    "#;
+
+    let result = parse_inner_report_xml(xml);
+
+    assert_eq!(
+        result,
+        Err(ReportXmlValidationError::InvalidStructure(
+            "inner report id is missing".to_string()
+        ))
+    );
+}
+
+#[test]
+fn validate_flexible_rejects_wrong_root_element() {
+    let xml = r#"<foo></foo>"#;
+
+    let result = validate_report_xml_flexible(xml);
+
+    assert_eq!(result, Err(ReportXmlValidationError::InvalidRootElement));
+}
+
+#[test]
+fn parse_flexible_rejects_wrong_root_element() {
+    let xml = r#"<foo></foo>"#;
+
+    let result = parse_report_xml_flexible(xml);
+
+    assert_eq!(result, Err(ReportXmlValidationError::InvalidRootElement));
+}
+
+#[test]
+fn parse_inner_report_rejects_wrong_root_element() {
+    let xml = r#"<foo></foo>"#;
+
+    let result = parse_inner_report_xml(xml);
+
+    assert_eq!(result, Err(ReportXmlValidationError::InvalidRootElement));
+}
+
+#[test]
+fn validate_flexible_rejects_empty_document() {
+    let xml = "";
+
+    let result = validate_report_xml_flexible(xml);
+
+    assert_eq!(result, Err(ReportXmlValidationError::EmptyDocument));
+}
+
+#[test]
+fn parse_flexible_rejects_empty_document() {
+    let xml = "";
+
+    let result = parse_report_xml_flexible(xml);
+
+    assert_eq!(result, Err(ReportXmlValidationError::EmptyDocument));
+}
+
+#[test]
+fn parse_inner_report_rejects_empty_document() {
+    let xml = "";
+
+    let result = parse_inner_report_xml(xml);
+
+    assert_eq!(result, Err(ReportXmlValidationError::EmptyDocument));
+}
+
+#[test]
+fn parse_inner_report_rejects_text_before_root_element() {
+    let xml = r#"hello<report id="inner-report"></report>"#;
+
+    let result = parse_inner_report_xml(xml);
+
+    assert_eq!(result, Err(ReportXmlValidationError::TextBeforeRootElement));
+}
+
+#[test]
+fn parse_inner_report_rejects_xml_with_multiple_root_elements() {
+    let xml = r#"
+        <report id="inner-report">
+            <scan_run_status>Done</scan_run_status>
+        </report>
+        <report id="second-root">
+            <scan_run_status>Done</scan_run_status>
+        </report>
+    "#;
+
+    let result = parse_inner_report_xml(xml);
+
+    assert!(matches!(
+        result,
+        Err(ReportXmlValidationError::InvalidXml(_))
+            | Err(ReportXmlValidationError::InvalidStructure(_))
+    ));
+}
+
 fn valid_report_xml() -> &'static str {
     r#"
         <report id="outer-report" content_type="application/xml" extension="xml">
@@ -323,6 +546,16 @@ fn valid_report_xml() -> &'static str {
                 <results>
                 </results>
             </report>
+        </report>
+    "#
+}
+
+fn valid_inner_report_xml() -> &'static str {
+    r#"
+        <report id="inner-report">
+            <scan_run_status>Done</scan_run_status>
+            <results>
+            </results>
         </report>
     "#
 }

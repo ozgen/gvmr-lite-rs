@@ -741,7 +741,7 @@ dependencies = [
 
 [[package]]
 name = "gvmr-cli"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "clap",
  "gvmr-core",
@@ -753,7 +753,7 @@ dependencies = [
 
 [[package]]
 name = "gvmr-core"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "async-trait",
  "base64",
@@ -773,7 +773,7 @@ dependencies = [
 
 [[package]]
 name = "gvmr-server"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "async-trait",
  "axum",

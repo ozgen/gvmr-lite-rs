@@ -3,7 +3,7 @@ set -euo pipefail
 
 BASE_URL="${BASE_URL:-http://localhost:8084}"
 FORMAT_ID="${FORMAT_ID:-a9063afd-313e-434e-9008-9dfe3a22e010}"
-REPORT_XML_FILE="${REPORT_XML_FILE:-report-container.xml}"
+REPORT_XML_FILE="${REPORT_XML_FILE:-report.xml}"
 OUTPUT_FILE="${OUTPUT_FILE:-rendered-report.pdf}"
 HEADERS_FILE="${HEADERS_FILE:-rendered-report-headers.txt}"
 TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-1200}"

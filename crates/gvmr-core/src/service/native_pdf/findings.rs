@@ -109,7 +109,7 @@ impl<'a> NativePdfDocument<'a> {
         let bottom_pad = 2.0;
         let chars_per_line = 95;
 
-        let lines = wrap_field_lines(value, chars_per_line);
+        let lines = box_field_lines(title, value, chars_per_line);
 
         if lines.is_empty() {
             return;
@@ -170,20 +170,18 @@ impl<'a> NativePdfDocument<'a> {
             for line in &lines[line_index..line_index + lines_on_page] {
                 self.pdf.set_xy(x + Unit::mm(left_pad), current_y);
 
-                if title.eq_ignore_ascii_case("References") {
-                    self.write_reference_line(line, CONTENT_WIDTH_MM - (left_pad * 2.0), line_h);
-                } else {
-                    self.pdf.cell_format(
-                        Unit::mm(CONTENT_WIDTH_MM - (left_pad * 2.0)),
-                        Unit::mm(line_h),
-                        line,
-                        "",
-                        1,
-                        "L",
-                        false,
-                        0,
-                        "",
-                    );
+                match line {
+                    BoxFieldLine::Text(text) => {
+                        self.write_text_line(text, CONTENT_WIDTH_MM - (left_pad * 2.0), line_h);
+                    }
+                    BoxFieldLine::Url { text, target } => {
+                        self.write_url_line(
+                            text,
+                            target,
+                            CONTENT_WIDTH_MM - (left_pad * 2.0),
+                            line_h,
+                        );
+                    }
                 }
 
                 current_y += Unit::mm(line_h);
@@ -200,25 +198,8 @@ impl<'a> NativePdfDocument<'a> {
         }
     }
 
-    fn write_reference_line(&mut self, line: &str, width_mm: f64, line_h: f64) {
-        let Some(url) = reference_url(line) else {
-            self.pdf.set_text_color(RGB::new(0, 0, 0));
-            self.pdf.cell_format(
-                Unit::mm(width_mm),
-                Unit::mm(line_h),
-                line,
-                "",
-                1,
-                "L",
-                false,
-                0,
-                "",
-            );
-            return;
-        };
-
-        self.pdf.set_text_color(RGB::new(0, 90, 180));
-
+    fn write_text_line(&mut self, line: &str, width_mm: f64, line_h: f64) {
+        self.pdf.set_text_color(RGB::new(0, 0, 0));
         self.pdf.cell_format(
             Unit::mm(width_mm),
             Unit::mm(line_h),
@@ -228,28 +209,25 @@ impl<'a> NativePdfDocument<'a> {
             "L",
             false,
             0,
-            url,
+            "",
         );
+    }
 
+    fn write_url_line(&mut self, line: &str, target: &str, width_mm: f64, line_h: f64) {
+        self.pdf.set_text_color(RGB::new(0, 90, 180));
+        self.pdf.cell_format(
+            Unit::mm(width_mm),
+            Unit::mm(line_h),
+            line,
+            "",
+            1,
+            "L",
+            false,
+            0,
+            target,
+        );
         self.pdf.set_text_color(RGB::new(0, 0, 0));
     }
-}
-
-fn wrap_field_lines(value: &str, max_chars: usize) -> Vec<String> {
-    let mut output = Vec::new();
-
-    for raw_line in value.lines() {
-        let line = raw_line.trim();
-
-        if line.is_empty() {
-            output.push(String::new());
-            continue;
-        }
-
-        output.extend(wrap_single_line(line, max_chars));
-    }
-
-    output
 }
 
 fn wrap_single_line(line: &str, max_chars: usize) -> Vec<String> {
@@ -319,22 +297,57 @@ fn split_long_word(word: &str, max_chars: usize) -> Vec<String> {
     chunks
 }
 
-fn reference_url(line: &str) -> Option<&str> {
-    let line = line.trim();
+fn reference_url(value: &str) -> Option<&str> {
+    let value = value.trim();
 
-    if let Some(url) = line.strip_prefix("URL:") {
-        return Some(url.trim());
+    let value = value
+        .strip_prefix("url:")
+        .or_else(|| value.strip_prefix("URL:"))
+        .map(str::trim)
+        .unwrap_or(value);
+
+    if value.starts_with("http://") || value.starts_with("https://") {
+        Some(value)
+    } else {
+        None
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum BoxFieldLine {
+    Text(String),
+    Url { text: String, target: String },
+}
+
+fn box_field_lines(title: &str, value: &str, max_chars: usize) -> Vec<BoxFieldLine> {
+    let is_references = title.eq_ignore_ascii_case("References");
+    let mut output = Vec::new();
+
+    for raw_line in value.lines() {
+        let line = raw_line.trim();
+
+        if line.is_empty() {
+            output.push(BoxFieldLine::Text(String::new()));
+            continue;
+        }
+
+        if is_references && let Some(url) = reference_url(line) {
+            for chunk in wrap_single_line(url, max_chars) {
+                output.push(BoxFieldLine::Url {
+                    text: chunk,
+                    target: url.to_string(),
+                });
+            }
+
+            continue;
+        }
+
+        for chunk in wrap_single_line(line, max_chars) {
+            output.push(BoxFieldLine::Text(chunk));
+        }
     }
 
-    if let Some(url) = line.strip_prefix("url:") {
-        return Some(url.trim());
-    }
-
-    if line.starts_with("http://") || line.starts_with("https://") {
-        return Some(line);
-    }
-
-    None
+    output
 }
 
 #[cfg(test)]

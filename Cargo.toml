@@ -24,7 +24,7 @@ jsonwebtoken = { version = "10", features = ["rust_crypto"] }
 printpdf = "0.9.1"
 quick-xml = { version = "0.40.1", features = ["serialize"] }
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
+serde_json = "1.0.150"
 tempfile = "3.27.0"
 thiserror = "2.0.18"
 tokio = { version = "1.52.3", features = ["macros", "process", "rt-multi-thread", "signal", "time"] }

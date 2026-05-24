@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::domain::report_model::{ReportEnvelope, ReportResult};
+use chrono::Datelike;
 
 pub const MAX_FIELD_CHARS: usize = 6_000;
 
@@ -272,14 +273,30 @@ pub fn task_name(report: &ReportEnvelope) -> &str {
 }
 
 pub fn summary_text(report: &ReportEnvelope) -> String {
-    let timezone = report.report.timezone.as_deref().unwrap_or("unknown");
-    let timezone_abbrev = report.report.timezone_abbrev.as_deref().unwrap_or("");
-    let scan_start = report.report.scan_start.as_deref().unwrap_or("unknown");
-    let scan_end = report.report.scan_end.as_deref().unwrap_or("unknown");
+    let timezone_abbrev = report
+        .report
+        .timezone_abbrev
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or("UTC");
+
+    let scan_start = report
+        .report
+        .scan_start
+        .as_deref()
+        .map(format_summary_datetime)
+        .unwrap_or_else(|| "unknown".to_string());
+
+    let scan_end = report
+        .report
+        .scan_end
+        .as_deref()
+        .map(format_summary_datetime)
+        .unwrap_or_else(|| "unknown".to_string());
 
     format!(
         "This document reports on the results of an automatic security scan. \
-All dates are displayed using the timezone \"{timezone}\", which is abbreviated \"{timezone_abbrev}\". \
+All dates are displayed using the timezone \"GMT\", which is abbreviated \"{timezone_abbrev}\". \
 The task was \"{}\". The scan started at {scan_start} and ended at {scan_end}. \
 The report first summarises the results found. Then, for each host, the report describes every issue found. \
 Please consider the advice given in each description, in order to rectify the issue.",
@@ -376,6 +393,26 @@ pub fn wrap_text(text: &str, chars_per_line: usize) -> Vec<String> {
     }
 
     lines
+}
+
+pub fn format_report_date(value: &str) -> String {
+    chrono::DateTime::parse_from_rfc3339(value)
+        .map(|date| {
+            let date = date.date_naive();
+            format!("{} {}, {}", date.format("%B"), date.day(), date.year())
+        })
+        .unwrap_or_else(|_| clean_text(value))
+}
+
+fn format_summary_datetime(value: &str) -> String {
+    chrono::DateTime::parse_from_rfc3339(value)
+        .map(|date| {
+            date.with_timezone(&chrono::Utc)
+                .format("%a %b %e %H:%M:%S %Y UTC")
+                .to_string()
+                .replace("  ", " ")
+        })
+        .unwrap_or_else(|_| clean_text(value))
 }
 
 #[cfg(test)]

@@ -10,6 +10,7 @@ test-utils = []
 [dependencies]
 async-trait.workspace = true
 base64.workspace = true
+chrono.workspace = true
 config.workspace = true
 dotenvy.workspace = true
 fpdf.workspace = true

@@ -1,6 +1,8 @@
 use fpdf::{Pdf, Unit};
 
-use crate::service::pdf_renderer_helper::{clean_text, report_date, summary_text};
+use crate::service::pdf_renderer_helper::{
+    clean_text, format_report_date, report_date, summary_text,
+};
 
 use super::{constants::CONTENT_WIDTH_MM, document::NativePdfDocument};
 
@@ -24,10 +26,12 @@ impl<'a> NativePdfDocument<'a> {
 
         self.pdf.ln(Unit::mm(10.0));
         self.pdf.set_font("Helvetica", "", Unit::pt(11.0));
+        let formatted_report_date = format_report_date(&report_date(self.report));
+
         self.pdf.cell_format(
             Unit::mm(CONTENT_WIDTH_MM),
             Unit::mm(8.0),
-            &clean_text(&report_date(self.report)),
+            &formatted_report_date,
             "",
             1,
             "C",

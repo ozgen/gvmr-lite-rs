@@ -558,3 +558,42 @@ fn wrap_text_keeps_long_word_on_own_line() {
 
     assert_eq!(lines, vec!["short", "veryverylongword", "end"]);
 }
+
+#[test]
+fn format_report_date_formats_rfc3339_date() {
+    let formatted = format_report_date("2026-05-20T11:59:48Z");
+
+    assert_eq!(formatted, "May 20, 2026");
+}
+
+#[test]
+fn format_report_date_falls_back_to_clean_text_for_invalid_date() {
+    let value = "bad\n date\t value";
+
+    let formatted = format_report_date(value);
+
+    assert_eq!(formatted, clean_text(value));
+}
+
+#[test]
+fn format_summary_datetime_formats_rfc3339_datetime_as_utc() {
+    let formatted = format_summary_datetime("2026-01-02T09:00:00Z");
+
+    assert_eq!(formatted, "Fri Jan 2 09:00:00 2026 UTC");
+}
+
+#[test]
+fn format_summary_datetime_converts_offset_datetime_to_utc() {
+    let formatted = format_summary_datetime("2026-01-02T11:00:00+02:00");
+
+    assert_eq!(formatted, "Fri Jan 2 09:00:00 2026 UTC");
+}
+
+#[test]
+fn format_summary_datetime_falls_back_to_clean_text_for_invalid_date() {
+    let value = "bad\n date\t value";
+
+    let formatted = format_summary_datetime(value);
+
+    assert_eq!(formatted, clean_text(value));
+}

@@ -1,5 +1,3 @@
-use std::{fs, path::PathBuf};
-
 use fpdf::Pdf;
 
 use crate::{

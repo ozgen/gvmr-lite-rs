@@ -11,6 +11,9 @@ fn test_report() -> ReportEnvelope {
         r#"
         <report>
             <report id="inner-report-id">
+                <timestamp>2024-01-02T05:04:05Z</timestamp>
+                <timezone>GMT</timezone>
+                <timezone_abbrev>UTC</timezone_abbrev>
                 <scan_start>2024-01-02T03:04:05Z</scan_start>
                 <scan_end>2024-01-02T04:04:05Z</scan_end>
                 <scan_run_status>Done</scan_run_status>
@@ -64,6 +67,7 @@ fn write_cover_accepts_empty_toc() {
     document.write_cover();
 
     assert_eq!(document.pdf.page_count(), 1);
+    assert_eq!(document.pdf.page_no(), 1);
     assert!(document.pdf.ok());
 }
 
@@ -77,6 +81,7 @@ fn write_cover_skips_toc_entries_without_page_number() {
     document.write_cover();
 
     assert_eq!(document.pdf.page_count(), 1);
+    assert_eq!(document.pdf.page_no(), 1);
     assert!(document.pdf.ok());
 }
 
@@ -90,6 +95,7 @@ fn write_cover_writes_toc_entries_with_page_number() {
     document.write_cover();
 
     assert_eq!(document.pdf.page_count(), 1);
+    assert_eq!(document.pdf.page_no(), 1);
     assert!(document.pdf.ok());
 }
 
@@ -106,5 +112,29 @@ fn write_cover_handles_mixed_toc_entries() {
     document.write_cover();
 
     assert_eq!(document.pdf.page_count(), 1);
+    assert_eq!(document.pdf.page_no(), 1);
+    assert!(document.pdf.ok());
+}
+
+#[test]
+fn write_cover_handles_missing_report_view_optional_fields() {
+    let report = parse_report_xml_flexible(
+        r#"
+        <report>
+            <report id="inner-report-id">
+                <scan_run_status>Done</scan_run_status>
+                <results />
+            </report>
+        </report>
+        "#,
+    )
+    .expect("minimal report XML should parse");
+
+    let mut document = NativePdfDocument::new(&report);
+
+    document.write_cover();
+
+    assert_eq!(document.pdf.page_count(), 1);
+    assert_eq!(document.pdf.page_no(), 1);
     assert!(document.pdf.ok());
 }

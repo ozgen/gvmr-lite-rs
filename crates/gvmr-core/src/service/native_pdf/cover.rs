@@ -1,14 +1,14 @@
 use fpdf::{Pdf, Unit};
 
-use crate::service::pdf_renderer_helper::{
-    clean_text, format_report_date, report_date, summary_text,
-};
+use crate::{service::pdf_renderer_helper::clean_text, service::report_view::ReportView};
 
 use super::{constants::CONTENT_WIDTH_MM, document::NativePdfDocument};
 
 impl<'a> NativePdfDocument<'a> {
     pub(crate) fn write_cover(&mut self) {
         self.pdf.add_page();
+
+        let view = ReportView::from_report(&self.report.report);
 
         self.pdf.set_y(Unit::mm(45.0));
         self.pdf.set_font("Helvetica", "", Unit::pt(18.0));
@@ -26,12 +26,11 @@ impl<'a> NativePdfDocument<'a> {
 
         self.pdf.ln(Unit::mm(10.0));
         self.pdf.set_font("Helvetica", "", Unit::pt(11.0));
-        let formatted_report_date = format_report_date(&report_date(self.report));
 
         self.pdf.cell_format(
             Unit::mm(CONTENT_WIDTH_MM),
             Unit::mm(8.0),
-            &formatted_report_date,
+            &view.report_date(),
             "",
             1,
             "C",
@@ -59,7 +58,7 @@ impl<'a> NativePdfDocument<'a> {
         self.pdf.multi_cell(
             Unit::mm(140.0),
             Unit::mm(4.8),
-            &clean_text(&summary_text(self.report)),
+            &clean_text(&view.summary_text()),
             "",
             "L",
             false,

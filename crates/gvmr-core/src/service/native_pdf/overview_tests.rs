@@ -2,10 +2,15 @@ use fpdf::Pdf;
 
 use crate::{
     domain::report_model::ReportEnvelope,
-    service::native_pdf::{document::NativePdfDocument, target::ReportTargetKind},
+    service::{
+        native_pdf::document::NativePdfDocument,
+        report_view::{
+            ReportTargetKind, build_filter_summary_text, filter_keyword_value,
+            result_count_summary_text,
+        },
+    },
     xml::report_validator::parse_report_xml_flexible,
 };
-
 fn parse_report(xml: &str) -> ReportEnvelope {
     parse_report_xml_flexible(xml).expect("test report XML should parse")
 }
@@ -209,7 +214,7 @@ fn build_overview_rows_groups_by_host_and_adds_total_row() {
     let report = overview_report();
     let document = NativePdfDocument::new(&report);
 
-    assert!(matches!(document.target_kind, ReportTargetKind::Host));
+    assert_eq!(document.target, ReportTargetKind::Host);
 
     let rows = document.build_overview_rows();
 
@@ -264,10 +269,7 @@ fn build_overview_rows_groups_by_container_image_display_name() {
     let report = container_image_report();
     let document = NativePdfDocument::new(&report);
 
-    assert!(matches!(
-        document.target_kind,
-        ReportTargetKind::ContainerImage
-    ));
+    assert_eq!(document.target, ReportTargetKind::ContainerImage);
 
     let rows = document.build_overview_rows();
 
@@ -288,18 +290,17 @@ fn build_overview_rows_groups_by_container_image_display_name() {
 #[test]
 fn filter_keyword_value_returns_matching_keyword_value_case_insensitively() {
     let report = filtered_report();
-    let document = NativePdfDocument::new(&report);
 
     assert_eq!(
-        document.filter_keyword_value("AUTOFP").as_deref(),
+        filter_keyword_value(&report.report, "AUTOFP").as_deref(),
         Some("1")
     );
     assert_eq!(
-        document.filter_keyword_value("apply_overrides").as_deref(),
+        filter_keyword_value(&report.report, "apply_overrides").as_deref(),
         Some("1")
     );
     assert_eq!(
-        document.filter_keyword_value("min_qod").as_deref(),
+        filter_keyword_value(&report.report, "min_qod").as_deref(),
         Some("80")
     );
 }
@@ -307,48 +308,53 @@ fn filter_keyword_value_returns_matching_keyword_value_case_insensitively() {
 #[test]
 fn filter_keyword_value_returns_none_for_missing_keyword() {
     let report = filtered_report();
-    let document = NativePdfDocument::new(&report);
 
-    assert_eq!(document.filter_keyword_value("missing"), None);
+    assert_eq!(filter_keyword_value(&report.report, "missing"), None);
 }
 
 #[test]
-fn append_missing_threat_level_text_adds_messages_for_missing_levels() {
-    let report = overview_report();
-    let document = NativePdfDocument::new(&report);
-    let mut lines = Vec::new();
+fn build_filter_summary_text_adds_messages_for_missing_levels() {
+    let report = filtered_report();
 
-    document.append_missing_threat_level_text(&mut lines, "chm");
+    let text = build_filter_summary_text(&report.report, ReportTargetKind::Host);
 
-    assert_eq!(
-        lines,
-        vec![
-            "Issues with the threat level \"Low\" are not shown.",
-            "Issues with the threat level \"Log\" are not shown.",
-            "Issues with the threat level \"Debug\" are not shown.",
-            "Issues with the threat level \"False Positive\" are not shown.",
-        ]
+    assert!(text.contains("Issues with the threat level \"Low\" are not shown."));
+    assert!(text.contains("Issues with the threat level \"Log\" are not shown."));
+    assert!(text.contains("Issues with the threat level \"Debug\" are not shown."));
+    assert!(text.contains("Issues with the threat level \"False Positive\" are not shown."));
+}
+
+#[test]
+fn build_filter_summary_text_does_not_add_missing_level_messages_for_empty_levels() {
+    let report = parse_report(
+        r#"
+        <report>
+            <report id="inner-report-id">
+                <filters>
+                    <keywords>
+                        <keyword>
+                            <column>levels</column>
+                            <value>   </value>
+                        </keyword>
+                    </keywords>
+                </filters>
+                <results />
+            </report>
+        </report>
+        "#,
     );
-}
 
-#[test]
-fn append_missing_threat_level_text_ignores_empty_levels() {
-    let report = overview_report();
-    let document = NativePdfDocument::new(&report);
-    let mut lines = Vec::new();
+    let text = build_filter_summary_text(&report.report, ReportTargetKind::Host);
 
-    document.append_missing_threat_level_text(&mut lines, "   ");
-
-    assert!(lines.is_empty());
+    assert!(!text.contains("Issues with the threat level"));
 }
 
 #[test]
 fn result_count_summary_text_reports_zero_results() {
     let report = empty_report();
-    let document = NativePdfDocument::new(&report);
 
     assert_eq!(
-        document.result_count_summary_text(),
+        result_count_summary_text(&report.report),
         "This report contains 0 results. Before filtering there were 0 results."
     );
 }
@@ -356,10 +362,9 @@ fn result_count_summary_text_reports_zero_results() {
 #[test]
 fn result_count_summary_text_reports_single_result_position() {
     let report = one_result_report();
-    let document = NativePdfDocument::new(&report);
 
     assert_eq!(
-        document.result_count_summary_text(),
+        result_count_summary_text(&report.report),
         "This report contains result 4 of the 5 results selected by the filtering above. Before filtering there were 5 results."
     );
 }
@@ -367,10 +372,9 @@ fn result_count_summary_text_reports_single_result_position() {
 #[test]
 fn result_count_summary_text_reports_result_range() {
     let report = filtered_report();
-    let document = NativePdfDocument::new(&report);
 
     assert_eq!(
-        document.result_count_summary_text(),
+        result_count_summary_text(&report.report),
         "This report contains results 3 to 4 of the 6 results selected by the filtering described above. Before filtering there were 10 results."
     );
 }
@@ -378,10 +382,9 @@ fn result_count_summary_text_reports_result_range() {
 #[test]
 fn result_count_summary_text_reports_all_filtered_results() {
     let report = overview_report();
-    let document = NativePdfDocument::new(&report);
 
     assert_eq!(
-        document.result_count_summary_text(),
+        result_count_summary_text(&report.report),
         "This report contains all 5 results selected by the filtering described above. Before filtering there were 8 results."
     );
 }
@@ -389,9 +392,8 @@ fn result_count_summary_text_reports_all_filtered_results() {
 #[test]
 fn build_filter_summary_text_uses_default_filter_messages_without_filter_data() {
     let report = overview_report();
-    let document = NativePdfDocument::new(&report);
 
-    let text = document.build_filter_summary_text();
+    let text = build_filter_summary_text(&report.report, ReportTargetKind::Host);
 
     assert!(text.contains("Vendor security updates are not trusted."));
     assert!(text.contains(
@@ -410,9 +412,8 @@ fn build_filter_summary_text_uses_default_filter_messages_without_filter_data() 
 #[test]
 fn build_filter_summary_text_uses_filter_keyword_values() {
     let report = filtered_report();
-    let document = NativePdfDocument::new(&report);
 
-    let text = document.build_filter_summary_text();
+    let text = build_filter_summary_text(&report.report, ReportTargetKind::Host);
 
     assert!(text.contains("Vendor security updates are trusted, using full CVE matching."));
     assert!(text.contains(
@@ -432,10 +433,7 @@ fn has_authentication_rows_is_false_for_non_host_target() {
     let report = container_image_report();
     let document = NativePdfDocument::new(&report);
 
-    assert!(matches!(
-        document.target_kind,
-        ReportTargetKind::ContainerImage
-    ));
+    assert_eq!(document.target, ReportTargetKind::ContainerImage);
     assert!(!document.has_authentication_rows());
 }
 

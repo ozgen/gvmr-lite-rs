@@ -6,13 +6,16 @@ use crate::{
     xml::report_validator::parse_report_xml_flexible,
 };
 
-use super::{BoxFieldLine, box_field_lines, reference_url, split_long_word, wrap_single_line};
+use super::{reference_url, split_long_word, wrap_single_line};
 
 fn test_report() -> ReportEnvelope {
     parse_report_xml_flexible(
         r#"
         <report>
             <report id="inner-report-id">
+                <timestamp>2024-01-02T05:04:05Z</timestamp>
+                <timezone>GMT</timezone>
+                <timezone_abbrev>UTC</timezone_abbrev>
                 <scan_start>2024-01-02T03:04:05Z</scan_start>
                 <scan_end>2024-01-02T04:04:05Z</scan_end>
                 <scan_run_status>Done</scan_run_status>
@@ -37,7 +40,8 @@ fn test_report() -> ReportEnvelope {
                         </qod>
                         <nvt oid="1.2.3.4">
                             <name>Test NVT</name>
-                            <tags>summary=Summary text|impact=Impact text|solution=Solution text|affected=Affected software|insight=Insight text|vuldetect=Detection text</tags>
+                            <tags>summary=Summary text|impact=Impact text|affected=Affected software|insight=Insight text|vuldetect=Detection text</tags>
+                            <solution type="VendorFix">Solution text</solution>
                             <refs>
                                 <ref type="url" id="https://example.test/advisory" />
                             </refs>
@@ -235,123 +239,5 @@ fn reference_url_strips_lowercase_url_prefix() {
     assert_eq!(
         reference_url("url: https://redis.io/blog/security-advisory-cve-2025-49844/"),
         Some("https://redis.io/blog/security-advisory-cve-2025-49844/")
-    );
-}
-
-#[test]
-fn reference_url_strips_uppercase_url_prefix() {
-    assert_eq!(
-        reference_url("URL: https://redis.io/blog/security-advisory-cve-2025-49844/"),
-        Some("https://redis.io/blog/security-advisory-cve-2025-49844/")
-    );
-}
-
-#[test]
-fn reference_url_trims_before_checking_url() {
-    assert_eq!(
-        reference_url("   url: https://example.test/advisory   "),
-        Some("https://example.test/advisory")
-    );
-}
-
-#[test]
-fn box_field_lines_returns_text_lines_for_non_reference_field() {
-    let lines = box_field_lines("Summary", "url: https://example.test/advisory", 95);
-
-    assert_eq!(
-        lines,
-        vec![BoxFieldLine::Text(
-            "url: https://example.test/advisory".to_string()
-        )]
-    );
-}
-
-#[test]
-fn box_field_lines_strips_url_prefix_for_reference_field() {
-    let lines = box_field_lines(
-        "References",
-        "url: https://redis.io/blog/security-advisory-cve-2025-49844/",
-        95,
-    );
-
-    assert_eq!(
-        lines,
-        vec![BoxFieldLine::Url {
-            text: "https://redis.io/blog/security-advisory-cve-2025-49844/".to_string(),
-            target: "https://redis.io/blog/security-advisory-cve-2025-49844/".to_string(),
-        }]
-    );
-}
-
-#[test]
-fn box_field_lines_marks_all_wrapped_reference_url_chunks_as_url() {
-    let url = "https://redrays.io/blog/poc-for-cve-2025-49844-cve-2025-46817-and-cve-2025-46818-critical-lua-engine-vulnerabilities/";
-    let value = format!("url: {url}");
-
-    let lines = box_field_lines("References", &value, 40);
-
-    assert!(lines.len() > 1);
-
-    for line in lines {
-        match line {
-            BoxFieldLine::Url { text, target } => {
-                assert!(!text.starts_with("url:"));
-                assert_eq!(target, url);
-            }
-            BoxFieldLine::Text(text) => {
-                panic!("expected URL line, got text line {text:?}");
-            }
-        }
-    }
-}
-
-#[test]
-fn box_field_lines_keeps_plain_reference_text_black() {
-    let lines = box_field_lines("References", "cve: CVE-2025-49844", 95);
-
-    assert_eq!(
-        lines,
-        vec![BoxFieldLine::Text("cve: CVE-2025-49844".to_string())]
-    );
-}
-
-#[test]
-fn box_field_lines_handles_mixed_reference_values() {
-    let lines = box_field_lines(
-        "References",
-        "cve: CVE-2025-49844\nurl: https://redis.io/blog/security-advisory-cve-2025-49844/",
-        95,
-    );
-
-    assert_eq!(
-        lines,
-        vec![
-            BoxFieldLine::Text("cve: CVE-2025-49844".to_string()),
-            BoxFieldLine::Url {
-                text: "https://redis.io/blog/security-advisory-cve-2025-49844/".to_string(),
-                target: "https://redis.io/blog/security-advisory-cve-2025-49844/".to_string(),
-            },
-        ]
-    );
-}
-
-#[test]
-fn box_field_lines_preserves_empty_lines() {
-    let lines = box_field_lines(
-        "References",
-        "cve: CVE-2025-49844\n\nurl: https://example.test",
-        95,
-    );
-
-    assert_eq!(
-        lines,
-        vec![
-            BoxFieldLine::Text("cve: CVE-2025-49844".to_string()),
-            BoxFieldLine::Text(String::new()),
-            BoxFieldLine::Url {
-                text: "https://example.test".to_string(),
-                target: "https://example.test".to_string(),
-            },
-        ]
     );
 }

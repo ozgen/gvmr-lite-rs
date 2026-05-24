@@ -1,4 +1,4 @@
-use gvmr_lite_rs::service::report_xml_builder::build_report_xml;
+use gvmr_core::service::report_xml_builder::build_report_xml;
 use serde_json::Value;
 
 #[test]

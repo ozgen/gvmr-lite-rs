@@ -1,0 +1,31 @@
+[package]
+name = "gvmr-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "gvmr-server"
+path = "src/main.rs"
+
+[dependencies]
+gvmr-core = { path = "../gvmr-core", features = ["test-utils"] }
+
+async-trait.workspace = true
+axum.workspace = true
+config.workspace = true
+jsonwebtoken.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tower-http.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+utoipa.workspace = true
+utoipa-swagger-ui.workspace = true
+
+[dev-dependencies]
+serial_test.workspace = true
+tower.workspace = true

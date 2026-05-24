@@ -1,0 +1,20 @@
+use config::ConfigError;
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum AppError {
+    #[error("failed to load settings: {0}")]
+    Settings(#[from] ConfigError),
+
+    #[error("failed to initialize format cache: {0}")]
+    FormatCache(#[source] std::io::Error),
+
+    #[error("failed to bind TCP listener: {0}")]
+    Bind(#[source] std::io::Error),
+
+    #[error("HTTP server failed: {0}")]
+    Server(#[source] std::io::Error),
+
+    #[error("configuration error: {0}")]
+    Config(String),
+}

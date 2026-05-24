@@ -1,26 +1,106 @@
 default_job = "check"
 
 [jobs.check]
-command = ["cargo", "check", "--all-targets", "--color", "always"]
+command = [
+  "cargo",
+  "check",
+  "--workspace",
+  "--all-targets",
+  "--color",
+  "always",
+]
 need_stdout = false
 
-[jobs.run]
-command = ["cargo", "run", "--color", "always"]
+[jobs.check-core]
+command = [
+  "cargo",
+  "check",
+  "-p",
+  "gvmr-core",
+  "--all-targets",
+  "--color",
+  "always",
+]
+need_stdout = false
+
+[jobs.check-server]
+command = [
+  "cargo",
+  "check",
+  "-p",
+  "gvmr-server",
+  "--all-targets",
+  "--color",
+  "always",
+]
+need_stdout = false
+
+[jobs.check-cli]
+command = [
+  "cargo",
+  "check",
+  "-p",
+  "gvmr-cli",
+  "--all-targets",
+  "--color",
+  "always",
+]
+need_stdout = false
+
+[jobs.run-server]
+command = [
+  "cargo",
+  "run",
+  "-p",
+  "gvmr-server",
+  "--color",
+  "always",
+]
+need_stdout = true
+allow_warnings = true
+
+[jobs.run-cli]
+command = [
+  "cargo",
+  "run",
+  "-p",
+  "gvmr-cli",
+  "--color",
+  "always",
+  "--",
+  "--help",
+]
 need_stdout = true
 allow_warnings = true
 
 [jobs.nextest]
-command = ["cargo", "nextest", "run", "--all-targets", "--color", "always"]
+command = [
+  "cargo",
+  "nextest",
+  "run",
+  "--workspace",
+  "--all-targets",
+  "--color",
+  "always",
+]
 need_stdout = true
 
 [jobs.test]
-command = ["cargo", "test", "--all-targets", "--color", "always"]
+command = [
+  "cargo",
+  "test",
+  "--workspace",
+  "--all-targets",
+  "--color",
+  "always",
+]
 need_stdout = true
 
 [jobs.coverage]
 command = [
   "cargo",
   "llvm-cov",
+  "--workspace",
   "--all-targets",
   "--ignore-filename-regex",
   "(_tests\\.rs|tests/)",
@@ -33,6 +113,7 @@ need_stdout = true
 command = [
   "cargo",
   "clippy",
+  "--workspace",
   "--all-targets",
   "--all-features",
   "--color",
@@ -44,18 +125,32 @@ command = [
 need_stdout = false
 
 [jobs.fmt]
-command = ["cargo", "fmt", "--all"]
+command = [
+  "cargo",
+  "fmt",
+  "--all",
+]
 need_stdout = true
 on_success = "back"
 
 [jobs.fmt-check]
-command = ["cargo", "fmt", "--all", "--check"]
+command = [
+  "cargo",
+  "fmt",
+  "--all",
+  "--check",
+]
 need_stdout = true
 
 [keybindings]
-r = "job:run"
+r = "job:run-server"
+R = "job:run-cli"
 t = "job:nextest"
 c = "job:clippy"
 f = "job:fmt"
 x = "job:fmt-check"
 v = "job:coverage"
+
+1 = "job:check-core"
+2 = "job:check-server"
+3 = "job:check-cli"

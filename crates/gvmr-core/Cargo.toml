@@ -1,0 +1,27 @@
+[package]
+name = "gvmr-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+test-utils = []
+
+[dependencies]
+async-trait.workspace = true
+base64.workspace = true
+chrono.workspace = true
+config.workspace = true
+dotenvy.workspace = true
+fpdf.workspace = true
+printpdf.workspace = true
+quick-xml.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+serial_test.workspace = true

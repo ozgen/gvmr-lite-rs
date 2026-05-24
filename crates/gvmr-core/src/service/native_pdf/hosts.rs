@@ -504,3 +504,7 @@ fn shorten_image_display_name(name: &str, arch_suffix: Option<&str>, max_chars: 
 
     format!("{prefix}...{suffix}")
 }
+
+#[cfg(test)]
+#[path = "hosts_test.rs"]
+mod hosts_test;

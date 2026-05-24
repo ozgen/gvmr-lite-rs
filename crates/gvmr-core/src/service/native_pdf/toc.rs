@@ -250,3 +250,7 @@ fn estimated_text_width_mm(value: &str, font_size_pt: f64) -> f64 {
 
     value.chars().count() as f64 * average_char_width_mm
 }
+
+#[cfg(test)]
+#[path = "toc_tests.rs"]
+mod toc_tests;

@@ -66,3 +66,7 @@ impl<'a> NativePdfDocument<'a> {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "layout_tests.rs"]
+mod layout_tests;

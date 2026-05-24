@@ -108,3 +108,7 @@ pub(crate) fn grouped_threats(results: &[ReportResult]) -> Vec<String> {
     ordered.extend(seen);
     ordered
 }
+
+#[cfg(test)]
+#[path = "target_tests.rs"]
+mod target_tests;

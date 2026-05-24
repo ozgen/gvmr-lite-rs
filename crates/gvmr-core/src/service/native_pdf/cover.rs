@@ -92,3 +92,7 @@ impl<'a> NativePdfDocument<'a> {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "cover_tests.rs"]
+mod cover_tests;

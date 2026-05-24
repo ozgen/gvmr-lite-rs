@@ -24,3 +24,7 @@ impl NativePdfRenderer {
         pass2.render()
     }
 }
+
+#[cfg(test)]
+#[path = "renderer_tests.rs"]
+mod renderer_tests;

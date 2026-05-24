@@ -60,3 +60,7 @@ impl<'a> NativePdfDocument<'a> {
             .map(ToOwned::to_owned)
     }
 }
+
+#[cfg(test)]
+#[path = "grouping_tests.rs"]
+mod grouping_tests;

@@ -336,3 +336,7 @@ fn reference_url(line: &str) -> Option<&str> {
 
     None
 }
+
+#[cfg(test)]
+#[path = "finding_tests.rs"]
+mod finding_tests;

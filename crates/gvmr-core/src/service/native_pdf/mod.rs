@@ -8,7 +8,6 @@ mod hosts;
 mod layout;
 mod output;
 mod overview;
-pub mod pdf_renderer;
 mod renderer;
 mod target;
 mod toc;

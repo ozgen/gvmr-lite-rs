@@ -435,3 +435,7 @@ impl<'a> NativePdfDocument<'a> {
             .map(ToOwned::to_owned)
     }
 }
+
+#[cfg(test)]
+#[path = "overview_tests.rs"]
+mod overview_tests;

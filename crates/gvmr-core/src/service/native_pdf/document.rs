@@ -119,3 +119,7 @@ impl<'a> NativePdfDocument<'a> {
         self.pdf.set_link(Some(safe_y), link, Some(page));
     }
 }
+
+#[cfg(test)]
+#[path = "document_tests.rs"]
+mod document_tests;

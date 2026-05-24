@@ -1,5 +1,46 @@
 use super::*;
 
+fn auth_rows_for_host_detail(name: &str, value: &str) -> Vec<AuthRow> {
+    let xml = format!(
+        r#"
+        <report
+            content_type="text/xml"
+            extension="xml"
+            id="outer-report-id"
+            format_id="xml-format-id"
+            config_id=""
+        >
+            <report id="inner-report-id">
+                <scan_run_status>Done</scan_run_status>
+
+                <host>
+                    <ip>192.168.178.64</ip>
+                    <asset asset_id="asset-id"></asset>
+                    <start>2026-05-11T07:53:18Z</start>
+                    <end>2026-05-11T07:58:52Z</end>
+
+                    <detail>
+                        <name>{name}</name>
+                        <value>{value}</value>
+                        <source>
+                            <type>nvt</type>
+                            <name>1.3.6.1.4.1.25623.1.0.90022</name>
+                            <description></description>
+                        </source>
+                        <extra></extra>
+                    </detail>
+                </host>
+            </report>
+        </report>
+        "#
+    );
+
+    let envelope: ReportEnvelope =
+        quick_xml::de::from_str(&xml).expect("report envelope should deserialize");
+
+    envelope.report.auth_rows()
+}
+
 #[test]
 fn deserializes_report_envelope_with_top_level_fields() {
     let xml = r#"
@@ -644,4 +685,458 @@ fn deserializes_report_host_details() {
     assert_eq!(source.r#type.as_deref(), Some("nvt"));
     assert_eq!(source.name.as_deref(), Some("source name"));
     assert_eq!(source.description.as_deref(), Some("source description"));
+}
+
+#[test]
+fn report_detects_container_image_report_from_oci_image_target() {
+    let xml = r#"
+        <report id="outer-report-id">
+            <report id="inner-report-id">
+                <task id="task-1">
+                    <name>Container Image Task</name>
+                    <oci_image_target id="oci-image-target-1">
+                        <name>Container Image Target</name>
+                    </oci_image_target>
+                </task>
+                <results />
+            </report>
+        </report>
+    "#;
+
+    let envelope: ReportEnvelope =
+        quick_xml::de::from_str(xml).expect("report envelope should deserialize");
+
+    assert!(envelope.report.is_container_image_report());
+    assert!(!envelope.report.is_agent_report());
+}
+
+#[test]
+fn report_detects_agent_report_from_agent_group() {
+    let xml = r#"
+        <report id="outer-report-id">
+            <report id="inner-report-id">
+                <task id="task-1">
+                    <name>Agent Task</name>
+                    <agent_group id="agent-group-1">
+                        <name>Agent Group</name>
+                    </agent_group>
+                </task>
+                <results />
+            </report>
+        </report>
+    "#;
+
+    let envelope: ReportEnvelope =
+        quick_xml::de::from_str(xml).expect("report envelope should deserialize");
+
+    assert!(envelope.report.is_agent_report());
+    assert!(!envelope.report.is_container_image_report());
+}
+
+#[test]
+fn report_defaults_to_regular_host_report_without_agent_or_container_target() {
+    let xml = r#"
+        <report id="outer-report-id">
+            <report id="inner-report-id">
+                <task id="task-1">
+                    <name>Host Task</name>
+                    <target id="target-1">
+                        <name>Regular Target</name>
+                    </target>
+                </task>
+                <results />
+            </report>
+        </report>
+    "#;
+
+    let envelope: ReportEnvelope =
+        quick_xml::de::from_str(xml).expect("report envelope should deserialize");
+
+    assert!(!envelope.report.is_agent_report());
+    assert!(!envelope.report.is_container_image_report());
+}
+
+#[test]
+fn report_host_address_prefers_ip() {
+    let xml = r#"
+        <report id="outer-report-id">
+            <report id="inner-report-id">
+                <host>
+                    <ip>192.0.2.10</ip>
+                    <detail>
+                        <name>hostname</name>
+                        <value>host-a.example.test</value>
+                    </detail>
+                </host>
+            </report>
+        </report>
+    "#;
+
+    let envelope: ReportEnvelope =
+        quick_xml::de::from_str(xml).expect("report envelope should deserialize");
+
+    let host = &envelope.report.hosts_detail[0];
+
+    assert_eq!(host.address(), Some("192.0.2.10"));
+}
+
+#[test]
+fn report_host_detail_value_returns_matching_detail_value() {
+    let xml = r#"
+        <report id="outer-report-id">
+            <report id="inner-report-id">
+                <host>
+                    <ip>192.0.2.10</ip>
+                    <detail>
+                        <name>hostname</name>
+                        <value>host-a.example.test</value>
+                    </detail>
+                    <detail>
+                        <name>agentID</name>
+                        <value>agent-a</value>
+                    </detail>
+                </host>
+            </report>
+        </report>
+    "#;
+
+    let envelope: ReportEnvelope =
+        quick_xml::de::from_str(xml).expect("report envelope should deserialize");
+
+    let host = &envelope.report.hosts_detail[0];
+
+    assert_eq!(host.detail_value("hostname"), Some("host-a.example.test"));
+    assert_eq!(host.detail_value("agentID"), Some("agent-a"));
+    assert_eq!(host.detail_value("missing"), None);
+}
+
+#[test]
+fn report_host_hostname_uses_hostname_detail() {
+    let xml = r#"
+        <report id="outer-report-id">
+            <report id="inner-report-id">
+                <host>
+                    <ip>192.0.2.10</ip>
+                    <detail>
+                        <name>hostname</name>
+                        <value>host-a.example.test</value>
+                    </detail>
+                </host>
+            </report>
+        </report>
+    "#;
+
+    let envelope: ReportEnvelope =
+        quick_xml::de::from_str(xml).expect("report envelope should deserialize");
+
+    let host = &envelope.report.hosts_detail[0];
+
+    assert_eq!(host.hostname(), Some("host-a.example.test"));
+}
+
+#[test]
+fn report_host_agent_id_uses_agent_id_detail() {
+    let xml = r#"
+        <report id="outer-report-id">
+            <report id="inner-report-id">
+                <host>
+                    <ip>192.0.2.10</ip>
+                    <detail>
+                        <name>agentID</name>
+                        <value>agent-a</value>
+                    </detail>
+                </host>
+            </report>
+        </report>
+    "#;
+
+    let envelope: ReportEnvelope =
+        quick_xml::de::from_str(xml).expect("report envelope should deserialize");
+
+    let host = &envelope.report.hosts_detail[0];
+
+    assert_eq!(host.agent_id(), Some("agent-a"));
+}
+
+#[test]
+fn report_result_target_address_uses_host_text() {
+    let xml = r#"
+        <report id="outer-report-id">
+            <report id="inner-report-id">
+                <results>
+                    <result id="result-1">
+                        <host>
+                            192.0.2.10
+                            <hostname>host-a.example.test</hostname>
+                        </host>
+                        <name>Finding A</name>
+                    </result>
+                </results>
+            </report>
+        </report>
+    "#;
+
+    let envelope: ReportEnvelope =
+        quick_xml::de::from_str(xml).expect("report envelope should deserialize");
+
+    let result = &envelope.report.results.unwrap().result[0];
+
+    assert_eq!(result.target_address(), Some("192.0.2.10"));
+}
+
+#[test]
+fn report_result_target_address_returns_none_when_host_is_missing() {
+    let xml = r#"
+        <report id="outer-report-id">
+            <report id="inner-report-id">
+                <results>
+                    <result id="result-1">
+                        <name>Finding A</name>
+                    </result>
+                </results>
+            </report>
+        </report>
+    "#;
+
+    let envelope: ReportEnvelope =
+        quick_xml::de::from_str(xml).expect("report envelope should deserialize");
+
+    let result = &envelope.report.results.unwrap().result[0];
+
+    assert_eq!(result.target_address(), None);
+}
+
+#[test]
+fn report_result_target_display_name_uses_oci_image_short_name() {
+    let xml = r#"
+        <report id="outer-report-id">
+            <report id="inner-report-id">
+                <results>
+                    <result id="result-1">
+                        <host>sha256:first-digest</host>
+                        <name>Container Finding</name>
+                        <oci_image>
+                            <name>registry.example.test/team/app:1.0</name>
+                            <digest>sha256:first-digest</digest>
+                            <registry>registry.example.test</registry>
+                            <path>team/app</path>
+                            <short_name>app:1.0</short_name>
+                        </oci_image>
+                    </result>
+                </results>
+            </report>
+        </report>
+    "#;
+
+    let envelope: ReportEnvelope =
+        quick_xml::de::from_str(xml).expect("report envelope should deserialize");
+
+    let result = &envelope.report.results.unwrap().result[0];
+
+    assert_eq!(result.target_display_name(), Some("app:1.0"));
+}
+
+#[test]
+fn report_result_target_display_name_returns_value_when_oci_image_exists_without_short_name() {
+    let xml = r#"
+        <report id="outer-report-id">
+            <report id="inner-report-id">
+                <results>
+                    <result id="result-1">
+                        <host>sha256:first-digest</host>
+                        <name>Container Finding</name>
+                        <oci_image>
+                            <name>registry.example.test/team/app:1.0</name>
+                            <digest>sha256:first-digest</digest>
+                            <registry>registry.example.test</registry>
+                            <path>team/app</path>
+                        </oci_image>
+                    </result>
+                </results>
+            </report>
+        </report>
+    "#;
+
+    let envelope: ReportEnvelope =
+        quick_xml::de::from_str(xml).expect("report envelope should deserialize");
+
+    let result = &envelope.report.results.unwrap().result[0];
+
+    assert!(result.target_display_name().is_some());
+}
+
+#[test]
+fn report_result_target_display_name_falls_back_to_target_address_without_oci_image() {
+    let xml = r#"
+        <report id="outer-report-id">
+            <report id="inner-report-id">
+                <results>
+                    <result id="result-1">
+                        <host>192.0.2.10</host>
+                        <name>Host Finding</name>
+                    </result>
+                </results>
+            </report>
+        </report>
+    "#;
+
+    let envelope: ReportEnvelope =
+        quick_xml::de::from_str(xml).expect("report envelope should deserialize");
+
+    let result = &envelope.report.results.unwrap().result[0];
+
+    assert_eq!(result.target_display_name(), Some("192.0.2.10"));
+}
+
+#[test]
+fn oci_image_display_name_prefers_short_name_then_name() {
+    let xml = r#"
+        <report id="outer-report-id">
+            <report id="inner-report-id">
+                <results>
+                    <result id="result-1">
+                        <host>sha256:first-digest</host>
+                        <oci_image>
+                            <name>registry.example.test/team/app:1.0</name>
+                            <short_name>app:1.0</short_name>
+                        </oci_image>
+                    </result>
+                </results>
+            </report>
+        </report>
+    "#;
+
+    let envelope: ReportEnvelope =
+        quick_xml::de::from_str(xml).expect("report envelope should deserialize");
+
+    let result = &envelope.report.results.unwrap().result[0];
+    let image = result.oci_image.as_ref().expect("expected OCI image");
+
+    assert_eq!(image.display_name(), Some("app:1.0"));
+}
+
+#[test]
+fn auth_rows_maps_ssh_success_for_host_reports() {
+    assert_eq!(
+        auth_rows_for_host_detail("Auth-SSH-Success", "Protocol SSH, Port 22, User root",),
+        vec![AuthRow {
+            target: "192.168.178.64".to_string(),
+            protocol: "SSH",
+            result: "Success",
+            value: "Protocol SSH, Port 22, User root".to_string(),
+        }]
+    );
+}
+
+#[test]
+fn auth_rows_maps_ssh_failure_for_host_reports() {
+    assert_eq!(
+        auth_rows_for_host_detail("Auth-SSH-Failure", "Protocol SSH, Port 22, User root",),
+        vec![AuthRow {
+            target: "192.168.178.64".to_string(),
+            protocol: "SSH",
+            result: "Failure",
+            value: "Protocol SSH, Port 22, User root".to_string(),
+        }]
+    );
+}
+
+#[test]
+fn auth_rows_maps_smb_success_for_host_reports() {
+    assert_eq!(
+        auth_rows_for_host_detail(
+            "Auth-SMB-Success",
+            "Protocol SMB, Port 445, User administrator",
+        ),
+        vec![AuthRow {
+            target: "192.168.178.64".to_string(),
+            protocol: "SMB",
+            result: "Success",
+            value: "Protocol SMB, Port 445, User administrator".to_string(),
+        }]
+    );
+}
+
+#[test]
+fn auth_rows_maps_smb_failure_for_host_reports() {
+    assert_eq!(
+        auth_rows_for_host_detail(
+            "Auth-SMB-Failure",
+            "Protocol SMB, Port 445, User administrator",
+        ),
+        vec![AuthRow {
+            target: "192.168.178.64".to_string(),
+            protocol: "SMB",
+            result: "Failure",
+            value: "Protocol SMB, Port 445, User administrator".to_string(),
+        }]
+    );
+}
+
+#[test]
+fn auth_rows_maps_esxi_success_for_host_reports() {
+    assert_eq!(
+        auth_rows_for_host_detail("Auth-ESXi-Success", "Protocol ESXi, Port 443, User root",),
+        vec![AuthRow {
+            target: "192.168.178.64".to_string(),
+            protocol: "ESXi",
+            result: "Success",
+            value: "Protocol ESXi, Port 443, User root".to_string(),
+        }]
+    );
+}
+
+#[test]
+fn auth_rows_maps_esxi_failure_for_host_reports() {
+    assert_eq!(
+        auth_rows_for_host_detail("Auth-ESXi-Failure", "Protocol ESXi, Port 443, User root",),
+        vec![AuthRow {
+            target: "192.168.178.64".to_string(),
+            protocol: "ESXi",
+            result: "Failure",
+            value: "Protocol ESXi, Port 443, User root".to_string(),
+        }]
+    );
+}
+
+#[test]
+fn auth_rows_maps_snmp_success_for_host_reports() {
+    assert_eq!(
+        auth_rows_for_host_detail(
+            "Auth-SNMP-Success",
+            "Protocol SNMP, Port 161, Community public",
+        ),
+        vec![AuthRow {
+            target: "192.168.178.64".to_string(),
+            protocol: "SNMP",
+            result: "Success",
+            value: "Protocol SNMP, Port 161, Community public".to_string(),
+        }]
+    );
+}
+
+#[test]
+fn auth_rows_maps_snmp_failure_for_host_reports() {
+    assert_eq!(
+        auth_rows_for_host_detail(
+            "Auth-SNMP-Failure",
+            "Protocol SNMP, Port 161, Community public",
+        ),
+        vec![AuthRow {
+            target: "192.168.178.64".to_string(),
+            protocol: "SNMP",
+            result: "Failure",
+            value: "Protocol SNMP, Port 161, Community public".to_string(),
+        }]
+    );
+}
+
+#[test]
+fn auth_rows_skips_unknown_auth_detail_names_for_host_reports() {
+    assert!(auth_rows_for_host_detail("EXIT_CODE", "EXIT_NOTVULN").is_empty());
+}
+
+#[test]
+fn auth_rows_skips_empty_auth_values_for_host_reports() {
+    assert!(auth_rows_for_host_detail("Auth-SSH-Success", "   ").is_empty());
 }

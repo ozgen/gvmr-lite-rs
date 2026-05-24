@@ -1863,3 +1863,194 @@ fn parse_report_xml_flexible_accepts_inner_report() {
 
     assert_eq!(report.report.id.as_deref(), Some("inner-report-id"));
 }
+
+#[tokio::test]
+async fn render_xml_native_pdf_uses_real_native_pdf_renderer() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let workdir = temp_test_dir("api-render-xml-native-pdf-real-renderer");
+
+    let format = ReportFormat::built_in_native_pdf(
+        BUILT_IN_NATIVE_PDF_TECHNICAL_ID,
+        "Native PDF Technical Report",
+        "pdf",
+        "application/pdf",
+        workdir.clone(),
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer.clone());
+
+    let mut request = render_xml_request(BUILT_IN_NATIVE_PDF_TECHNICAL_ID);
+    request.report_xml = minimal_inner_report_xml();
+
+    let response = match render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(request),
+    )
+    .await
+    {
+        Ok(response) => response,
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(renderer.calls_count(), 0);
+
+    assert_ne!(response.status(), StatusCode::NOT_FOUND);
+    assert_ne!(response.status(), StatusCode::FORBIDDEN);
+    assert_ne!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    if response.status() == StatusCode::OK {
+        assert_eq!(
+            response.headers().get(CONTENT_TYPE).unwrap(),
+            "application/pdf"
+        );
+
+        assert_eq!(
+            response.headers().get(CONTENT_DISPOSITION).unwrap(),
+            "attachment; filename=\"native-technical-report.pdf\""
+        );
+    } else {
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+
+        let body = response_body_string(response).await;
+
+        assert!(body.contains("Native PDF render failed"));
+    }
+
+    let _ = fs::remove_dir_all(workdir);
+}
+
+#[tokio::test]
+async fn render_xml_native_pdf_uses_custom_output_filename() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let workdir = temp_test_dir("api-render-xml-native-pdf-custom-output-name");
+
+    let format = ReportFormat::built_in_native_pdf(
+        BUILT_IN_NATIVE_PDF_TECHNICAL_ID,
+        "Native PDF Technical Report",
+        "pdf",
+        "application/pdf",
+        workdir.clone(),
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer.clone());
+
+    let mut request = render_xml_request(BUILT_IN_NATIVE_PDF_TECHNICAL_ID);
+    request.report_xml = minimal_inner_report_xml();
+    request.output_name = Some("custom-native-report.pdf".to_string());
+
+    let response = match render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(request),
+    )
+    .await
+    {
+        Ok(response) => response,
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(renderer.calls_count(), 0);
+
+    assert_ne!(response.status(), StatusCode::NOT_FOUND);
+    assert_ne!(response.status(), StatusCode::FORBIDDEN);
+    assert_ne!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    if response.status() == StatusCode::OK {
+        assert_eq!(
+            response.headers().get(CONTENT_TYPE).unwrap(),
+            "application/pdf"
+        );
+
+        assert_eq!(
+            response.headers().get(CONTENT_DISPOSITION).unwrap(),
+            "attachment; filename=\"custom-native-report.pdf\""
+        );
+    } else {
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+
+        let body = response_body_string(response).await;
+
+        assert!(body.contains("Native PDF render failed"));
+    }
+
+    let _ = fs::remove_dir_all(workdir);
+}
+
+#[tokio::test]
+async fn render_typst_accepts_custom_output_name() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let workdir = temp_test_dir("api-render-typst-custom-output-name");
+
+    let format = ReportFormat::built_in_typst(
+        BUILT_IN_TYPST_TECHNICAL_ID,
+        "Typst Technical Report",
+        "pdf",
+        "application/pdf",
+        workdir.clone(),
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer.clone());
+
+    let mut request = render_request(BUILT_IN_TYPST_TECHNICAL_ID);
+    request.output_name = Some("custom-typst-report.pdf".to_string());
+
+    let response = match render(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(request),
+    )
+    .await
+    {
+        Ok(response) => response,
+        Err(error) => error.into_response(),
+    };
+
+    assert_ne!(response.status(), StatusCode::NOT_FOUND);
+    assert_ne!(response.status(), StatusCode::FORBIDDEN);
+    assert_ne!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(renderer.calls_count(), 0);
+
+    let _ = fs::remove_dir_all(workdir);
+}
+
+#[tokio::test]
+async fn render_xml_typst_accepts_custom_output_name() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+
+    let workdir = temp_test_dir("api-render-xml-typst-custom-output-name");
+
+    let format = ReportFormat::built_in_typst(
+        BUILT_IN_TYPST_TECHNICAL_ID,
+        "Typst Technical Report",
+        "pdf",
+        "application/pdf",
+        workdir.clone(),
+    );
+
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer.clone());
+
+    let mut request = render_xml_request(BUILT_IN_TYPST_TECHNICAL_ID);
+    request.output_name = Some("custom-typst-report.pdf".to_string());
+
+    let response = match render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(request),
+    )
+    .await
+    {
+        Ok(response) => response,
+        Err(error) => error.into_response(),
+    };
+
+    assert_ne!(response.status(), StatusCode::NOT_FOUND);
+    assert_ne!(response.status(), StatusCode::FORBIDDEN);
+    assert_ne!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(renderer.calls_count(), 0);
+
+    let _ = fs::remove_dir_all(workdir);
+}

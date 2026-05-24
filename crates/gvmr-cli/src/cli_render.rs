@@ -59,3 +59,7 @@ pub fn render_xml_file(
 
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "cli_render_tests.rs"]
+mod cli_render_tests;

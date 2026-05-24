@@ -62,3 +62,7 @@ pub async fn run(cli: Cli) -> Result<(), CliError> {
 
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "cli_tests.rs"]
+mod cli_tests;

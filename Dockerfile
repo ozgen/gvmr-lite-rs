@@ -48,6 +48,12 @@ FROM debian:bookworm-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     util-linux \
+    zip \
+    python3 \
+    python3-pip \
+    python3-cairocffi \
+    python3-cairo \
+    python3-lxml \
     xsltproc \
     xmlstarlet \
     graphviz \
@@ -58,6 +64,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     texlive-pictures \
     texlive-latex-extra \
     && rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install --no-cache-dir --break-system-packages pycha
 
 RUN useradd -m -u 10001 gvmr \
     && mkdir -p /tmp/gvmr-lite/work \

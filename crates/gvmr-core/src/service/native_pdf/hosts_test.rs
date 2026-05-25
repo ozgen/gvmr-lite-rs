@@ -432,3 +432,72 @@ fn write_target_scan_times_ignores_missing_host_detail() {
     assert_eq!(document.pdf.get_y().to_mm(), initial_y.to_mm());
     assert!(document.pdf.ok());
 }
+
+#[test]
+fn write_return_to_host_link_does_nothing_when_target_has_no_registered_link() {
+    let report = host_report();
+    let mut document = NativePdfDocument::new(&report);
+
+    document.pdf.add_page();
+    let initial_y = document.pdf.get_y();
+
+    document.write_return_to_host_link("missing-host");
+
+    assert_eq!(document.pdf.get_y().to_mm(), initial_y.to_mm());
+    assert!(document.pdf.ok());
+}
+
+#[test]
+fn write_host_findings_writes_return_link_after_each_finding() {
+    let report = host_report();
+    let mut document = NativePdfDocument::new(&report);
+
+    document.pdf.add_page();
+
+    let target = "192.0.2.10";
+    let results = &report.report.results.as_ref().unwrap().result[0..2];
+
+    let initial_y = document.pdf.get_y();
+
+    document.write_host_findings("2.1", target, results);
+
+    assert!(document.pdf.get_y().to_mm() > initial_y.to_mm());
+    assert!(document.pdf.ok());
+}
+
+#[test]
+fn write_return_to_host_link_writes_link_when_target_has_registered_link() {
+    let report = host_report();
+    let mut document = NativePdfDocument::new(&report);
+
+    document.pdf.add_page();
+
+    let target = "192.0.2.10";
+    let link = document.pdf.add_link();
+    document.host_links.insert(target.to_string(), link);
+
+    let initial_y = document.pdf.get_y();
+
+    document.write_return_to_host_link(target);
+
+    assert!(document.pdf.get_y().to_mm() > initial_y.to_mm());
+    assert!(document.pdf.ok());
+}
+
+#[test]
+fn write_container_findings_by_threat_writes_return_links() {
+    let report = container_image_report();
+    let mut document = NativePdfDocument::new(&report);
+
+    document.pdf.add_page();
+
+    let target = "registry.example.test/team/app:1.0";
+    let results = &report.report.results.as_ref().unwrap().result;
+
+    let initial_y = document.pdf.get_y();
+
+    document.write_container_findings_by_threat("2.1", target, results);
+
+    assert!(document.pdf.get_y().to_mm() > initial_y.to_mm());
+    assert!(document.pdf.ok());
+}

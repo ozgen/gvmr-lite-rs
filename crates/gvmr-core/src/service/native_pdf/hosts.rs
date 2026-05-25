@@ -361,6 +361,9 @@ impl<'a> NativePdfDocument<'a> {
                 };
 
                 self.write_finding_card(&title, result);
+                self.write_return_to_host_link(target);
+
+                self.pdf.ln(Unit::mm(6.0));
             }
         }
     }
@@ -383,6 +386,9 @@ impl<'a> NativePdfDocument<'a> {
             }
 
             self.write_finding_card(&title, result);
+            self.write_return_to_host_link(target);
+
+            self.pdf.ln(Unit::mm(6.0));
         }
     }
 
@@ -406,6 +412,31 @@ impl<'a> NativePdfDocument<'a> {
     fn image_architecture_for_result(&self, result: &ReportResult) -> Option<&str> {
         self.host_detail_for_result(result)
             .and_then(|host| host.architecture())
+    }
+
+    pub(crate) fn write_return_to_host_link(&mut self, target: &str) {
+        let Some(link) = self.host_links.get(target).copied() else {
+            return;
+        };
+
+        self.pdf.ln(Unit::mm(3.0));
+
+        self.pdf.set_text_color(RGB::new(0, 90, 180));
+        self.pdf.set_font("Helvetica", "", Unit::pt(7.0));
+
+        self.pdf.cell_format(
+            Unit::mm(CONTENT_WIDTH_MM),
+            Unit::mm(5.0),
+            &format!("[ return to {} ]", clean_text(target)),
+            "",
+            1,
+            "L",
+            false,
+            link,
+            "",
+        );
+
+        self.pdf.set_text_color(RGB::new(0, 0, 0));
     }
 }
 

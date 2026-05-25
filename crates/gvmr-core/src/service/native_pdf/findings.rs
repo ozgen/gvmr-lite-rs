@@ -84,8 +84,6 @@ impl<'a> NativePdfDocument<'a> {
         if !refs.is_empty() {
             self.write_box_field("References", Some(refs.join("\n")));
         }
-
-        self.pdf.ln(Unit::mm(6.0));
     }
 
     pub(crate) fn write_box_field(&mut self, title: &str, value: Option<String>) {

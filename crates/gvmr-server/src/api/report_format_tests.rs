@@ -4,10 +4,10 @@ use std::{
 };
 
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
 
 use crate::{
@@ -16,11 +16,11 @@ use crate::{
     auth::context::AuthContext,
 };
 
+use crate::config::settings::{AuthMode, Settings};
 use gvmr_core::{
     domain::report_format::{ReportFormat, ReportFormatFile},
     service::format_cache::FormatCache,
 };
-use crate::config::settings::{AuthMode, Settings};
 
 fn test_settings(
     auth_mode: AuthMode,

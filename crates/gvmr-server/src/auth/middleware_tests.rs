@@ -1,22 +1,22 @@
 use super::*;
 
 use axum::{
-    body::{to_bytes, Body}, http::{Request, StatusCode},
+    Json, Router,
+    body::{Body, to_bytes},
+    http::{Request, StatusCode},
     middleware,
     response::IntoResponse,
     routing::get,
-    Json,
-    Router,
 };
-use jsonwebtoken::{encode, EncodingKey, Header};
+use jsonwebtoken::{EncodingKey, Header, encode};
 use serde::Serialize;
 use serde_json::json;
 use tower::util::ServiceExt;
 
 use crate::{app::state::AppState, auth::context::AuthContext};
 
-use gvmr_core::service::format_cache::FormatCache;
 use crate::config::settings::{AuthMode, Settings};
+use gvmr_core::service::format_cache::FormatCache;
 
 async fn protected_handler(
     axum::extract::Extension(ctx): axum::extract::Extension<AuthContext>,

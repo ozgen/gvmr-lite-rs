@@ -1,13 +1,13 @@
 use axum::{
-    body::{to_bytes, Body},
+    body::{Body, to_bytes},
     http::{Request, StatusCode},
 };
 use tower::ServiceExt;
 
 use crate::app::{router::build_router, state::AppState};
 
-use gvmr_core::service::format_cache::FormatCache;
 use crate::config::settings::{AuthMode, Settings};
+use gvmr_core::service::format_cache::FormatCache;
 
 fn test_settings(auth_mode: AuthMode) -> Settings {
     Settings {

@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
 use serde::Deserialize;
 
-use crate::{api::error::ApiError, auth::context::AuthContext};
 use crate::config::settings::Settings;
+use crate::{api::error::ApiError, auth::context::AuthContext};
 
 #[derive(Debug, Deserialize)]
 struct Claims {

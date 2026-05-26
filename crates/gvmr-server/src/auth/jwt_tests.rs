@@ -1,5 +1,5 @@
 use super::*;
-use gvmr_core::config::settings::{AuthMode, Settings};
+use crate::config::settings::{AuthMode, Settings};
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use serde::Serialize;
 

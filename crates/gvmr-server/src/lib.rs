@@ -6,10 +6,10 @@ pub mod telemetry;
 
 use std::net::SocketAddr;
 
+use config::settings::Settings;
+use gvmr_core::service::format_cache::FormatCache;
 use tokio::net::TcpListener;
 use tracing::{Instrument, info};
-
-use gvmr_core::{config::settings::Settings, service::format_cache::FormatCache};
 
 use crate::app::{error::AppError, router::build_router, state::AppState};
 
@@ -77,6 +77,7 @@ pub(crate) async fn bind_listener(port: u16) -> Result<TcpListener, AppError> {
     TcpListener::bind(addr).await.map_err(AppError::Server)
 }
 
+pub mod config;
 #[cfg(test)]
 #[path = "lib_tests.rs"]
 mod lib_tests;

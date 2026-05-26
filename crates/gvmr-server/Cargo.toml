@@ -14,6 +14,7 @@ gvmr-core = { path = "../gvmr-core", features = ["test-utils"] }
 async-trait.workspace = true
 axum.workspace = true
 config.workspace = true
+dotenvy.workspace = true
 jsonwebtoken.workspace = true
 serde.workspace = true
 serde_json.workspace = true

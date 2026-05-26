@@ -1,5 +1,5 @@
+use crate::config::settings::AuthMode;
 use crate::{api::error::ApiError, auth::context::AuthContext};
-use gvmr_core::config::settings::AuthMode;
 
 pub fn require_scope(ctx: &AuthContext, auth_mode: &AuthMode, scope: &str) -> Result<(), ApiError> {
     if !matches!(auth_mode, AuthMode::Jwt) {

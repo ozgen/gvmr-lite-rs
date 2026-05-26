@@ -35,8 +35,8 @@ use crate::{
     auth::context::AuthContext,
 };
 
+use crate::config::settings::{AuthMode, Settings};
 use gvmr_core::{
-    config::settings::{AuthMode, Settings},
     domain::{
         report_format::{ReportFormat, ReportFormatFile},
         report_format_constants::{BUILT_IN_NATIVE_PDF_TECHNICAL_ID, BUILT_IN_TYPST_TECHNICAL_ID},

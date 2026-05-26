@@ -16,8 +16,8 @@ use crate::{
     auth::context::AuthContext,
 };
 
+use crate::config::settings::{AuthMode, Settings};
 use gvmr_core::{
-    config::settings::{AuthMode, Settings},
     domain::report_format::{ReportFormat, ReportFormatFile},
     service::format_cache::FormatCache,
 };

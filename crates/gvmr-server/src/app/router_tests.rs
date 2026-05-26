@@ -6,10 +6,8 @@ use tower::ServiceExt;
 
 use crate::app::{router::build_router, state::AppState};
 
-use gvmr_core::{
-    config::settings::{AuthMode, Settings},
-    service::format_cache::FormatCache,
-};
+use crate::config::settings::{AuthMode, Settings};
+use gvmr_core::service::format_cache::FormatCache;
 
 fn test_settings(auth_mode: AuthMode) -> Settings {
     Settings {

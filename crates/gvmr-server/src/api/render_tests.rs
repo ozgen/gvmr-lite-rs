@@ -5,21 +5,21 @@ use std::{
     fs,
     path::PathBuf,
     sync::{
-        Arc, Mutex,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicUsize, Ordering}, Arc,
+        Mutex,
     },
 };
 
 use async_trait::async_trait;
 use axum::{
-    Json,
     body::to_bytes,
     extract::State,
     http::{
-        StatusCode,
         header::{CONTENT_DISPOSITION, CONTENT_TYPE},
+        StatusCode,
     },
     response::IntoResponse,
+    Json,
 };
 use serde_json::{Map, Value};
 
@@ -36,7 +36,6 @@ use crate::{
 };
 
 use gvmr_core::{
-    config::settings::{AuthMode, Settings},
     domain::{
         report_format::{ReportFormat, ReportFormatFile},
         report_format_constants::{BUILT_IN_NATIVE_PDF_TECHNICAL_ID, BUILT_IN_TYPST_TECHNICAL_ID},
@@ -48,6 +47,7 @@ use gvmr_core::{
     },
     xml::report_validator::parse_report_xml_flexible,
 };
+use crate::config::settings::{AuthMode, Settings};
 
 #[derive(Debug, Clone, Default)]
 struct RecordedRenderCall {

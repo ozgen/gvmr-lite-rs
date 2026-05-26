@@ -4,7 +4,7 @@ use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
 use serde::Deserialize;
 
 use crate::{api::error::ApiError, auth::context::AuthContext};
-use gvmr_core::config::settings::Settings;
+use crate::config::settings::Settings;
 
 #[derive(Debug, Deserialize)]
 struct Claims {

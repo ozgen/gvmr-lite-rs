@@ -1,6 +1,6 @@
 use tracing_subscriber::{EnvFilter, fmt};
 
-use gvmr_core::config::settings::Settings;
+use crate::config::settings::Settings;
 
 pub fn init(settings: &Settings) {
     let env_filter = env_filter_from(&settings.log_level);

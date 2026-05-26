@@ -2,7 +2,7 @@ use std::fs;
 
 use crate::{bind_listener, build_app_state};
 
-use gvmr_core::config::settings::{AuthMode, Settings};
+use crate::config::settings::{AuthMode, Settings};
 
 fn test_settings(temp_dir: &std::path::Path) -> Settings {
     Settings {

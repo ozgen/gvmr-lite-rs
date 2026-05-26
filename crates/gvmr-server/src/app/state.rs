@@ -2,14 +2,12 @@ use std::sync::Arc;
 
 use tokio::sync::RwLock;
 
-use gvmr_core::{
-    config::settings::Settings,
-    service::{
-        format_cache::FormatCache, json_report_renderer::JsonReportRenderer,
-        native_pdf::NativePdfRenderer, report_renderer::ReportRenderer,
-        typst::renderer::TypstReportRenderer, xml_report_renderer::XmlReportRenderer,
-    },
+use gvmr_core::service::{
+    format_cache::FormatCache, json_report_renderer::JsonReportRenderer,
+    native_pdf::NativePdfRenderer, report_renderer::ReportRenderer,
+    typst::renderer::TypstReportRenderer, xml_report_renderer::XmlReportRenderer,
 };
+use crate::config::settings::Settings;
 
 #[derive(Clone)]
 pub struct AppState {

@@ -11,7 +11,7 @@ use crate::{
     auth::{bearer::extract_bearer, context::AuthContext, jwt::validate_jwt},
 };
 
-use gvmr_core::config::settings::AuthMode;
+use crate::config::settings::AuthMode;
 
 pub async fn require_auth(
     State(state): State<AppState>,

@@ -4,10 +4,8 @@ use axum::{body::to_bytes, extract::State, http::StatusCode, response::IntoRespo
 
 use crate::{api::debug::sync_ping, app::state::AppState, auth::context::AuthContext};
 
-use gvmr_core::{
-    config::settings::{AuthMode, Settings},
-    service::format_cache::FormatCache,
-};
+use gvmr_core::service::format_cache::FormatCache;
+use crate::config::settings::{AuthMode, Settings};
 
 async fn response_body(response: axum::response::Response) -> String {
     let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();

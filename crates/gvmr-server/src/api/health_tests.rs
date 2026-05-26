@@ -4,17 +4,15 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use axum::{Json, extract::State};
+use axum::{extract::State, Json};
 
 use crate::{
     api::health::{live, ready},
     app::state::AppState,
 };
 
-use gvmr_core::{
-    config::settings::{AuthMode, Settings},
-    service::format_cache::FormatCache,
-};
+use gvmr_core::service::format_cache::FormatCache;
+use crate::config::settings::{AuthMode, Settings};
 
 fn unique_test_dir(name: &str) -> PathBuf {
     let nanos = SystemTime::now()

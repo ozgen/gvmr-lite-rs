@@ -1,3 +1,4 @@
+pub mod audit;
 pub mod format_cache;
 pub mod json_report_renderer;
 pub mod native_pdf;

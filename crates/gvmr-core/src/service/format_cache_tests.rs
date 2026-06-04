@@ -474,28 +474,6 @@ fn cache_file_overwrites_existing_file_when_rebuild_on_start_is_true() {
 }
 
 #[test]
-fn cache_format_skips_audit_report_format() {
-    let feed_dir = temp_test_dir("format-cache-skip-feed");
-    let work_dir = temp_test_dir("format-cache-skip-work");
-
-    let cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, true);
-
-    let parsed = parsed_format(
-        "fmt-audit",
-        "audit",
-        vec![parsed_file_with_content("generate", b"hello")],
-    );
-
-    let result = cache.cache_format(parsed, false).unwrap();
-
-    assert!(result.is_none());
-    assert!(!work_dir.join("fmt-audit").exists());
-
-    let _ = fs::remove_dir_all(feed_dir);
-    let _ = fs::remove_dir_all(work_dir);
-}
-
-#[test]
 fn cache_format_creates_report_format_and_writes_files() {
     let feed_dir = temp_test_dir("format-cache-create-feed");
     let work_dir = temp_test_dir("format-cache-create-work");
@@ -711,14 +689,204 @@ fn register_built_in_formats_is_noop_when_experimental_is_false() {
 }
 
 #[test]
-fn should_skip_report_format_returns_true_for_audit() {
-    assert!(FormatCache::should_skip_report_format("fmt-1", "audit"));
-    assert!(FormatCache::should_skip_report_format("fmt-1", "AUDIT"));
+fn initialize_with_force_routes_audit_formats_to_audit_cache() {
+    let feed_dir = temp_test_dir("init-audit-feed");
+    let work_dir = temp_test_dir("init-audit-work");
+
+    fs::write(
+        feed_dir.join("scan-format.xml"),
+        r#"
+        <report_format id="scan-fmt-1">
+            <name>Scan Format</name>
+            <extension>txt</extension>
+            <content_type>text/plain</content_type>
+            <report_type>scan</report_type>
+            <file name="scan-generate">c2Nhbg==</file>
+        </report_format>
+        "#,
+    )
+    .unwrap();
+
+    fs::write(
+        feed_dir.join("audit-format.xml"),
+        r#"
+        <report_format id="audit-fmt-1">
+            <name>Audit Format</name>
+            <extension>xml</extension>
+            <content_type>text/xml</content_type>
+            <report_type>audit</report_type>
+            <file name="audit-generate">YXVkaXQ=</file>
+        </report_format>
+        "#,
+    )
+    .unwrap();
+
+    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, false);
+
+    cache.initialize_with_force(false).unwrap();
+
+    assert!(cache.get("scan-fmt-1").is_some());
+    assert!(cache.contains("scan-fmt-1"));
+    assert_eq!(cache.list().len(), 1);
+
+    assert!(cache.get_audit("audit-fmt-1").is_some());
+    assert!(cache.contains_audit("audit-fmt-1"));
+    assert_eq!(cache.list_audit().len(), 1);
+
+    assert!(cache.get("audit-fmt-1").is_none());
+    assert!(!cache.contains("audit-fmt-1"));
+
+    assert!(cache.get_audit("scan-fmt-1").is_none());
+    assert!(!cache.contains_audit("scan-fmt-1"));
+
+    assert!(work_dir.join("scan-fmt-1").exists());
+    assert!(work_dir.join("audit-fmt-1").exists());
+
+    let _ = fs::remove_dir_all(feed_dir);
+    let _ = fs::remove_dir_all(work_dir);
 }
 
 #[test]
-fn should_skip_report_format_returns_false_for_normal_report_type() {
-    assert!(!FormatCache::should_skip_report_format("fmt-1", "scan"));
+fn initialize_with_force_true_clears_existing_audit_formats_when_feed_is_empty() {
+    let feed_dir = temp_test_dir("init-force-empty-audit-feed");
+    let work_dir = temp_test_dir("init-force-empty-audit-work");
+
+    let old_scan_workdir = work_dir.join("old-scan-format");
+    let old_audit_workdir = work_dir.join("old-audit-format");
+
+    fs::create_dir_all(&old_scan_workdir).unwrap();
+    fs::create_dir_all(&old_audit_workdir).unwrap();
+
+    fs::write(old_scan_workdir.join("old-scan.txt"), b"old scan").unwrap();
+    fs::write(old_audit_workdir.join("old-audit.txt"), b"old audit").unwrap();
+
+    let mut formats = HashMap::new();
+    formats.insert(
+        "old-scan-format".to_string(),
+        test_report_format(old_scan_workdir.clone()),
+    );
+
+    let mut audit_formats = HashMap::new();
+    audit_formats.insert(
+        "old-audit-format".to_string(),
+        test_report_format(old_audit_workdir.clone()),
+    );
+
+    let mut cache = FormatCache::new_for_test_with_audit_formats(
+        feed_dir.clone(),
+        work_dir.clone(),
+        false,
+        formats,
+        audit_formats,
+    );
+
+    cache.initialize_with_force(true).unwrap();
+
+    assert!(cache.get("old-scan-format").is_none());
+    assert!(cache.get_audit("old-audit-format").is_none());
+
+    assert!(!work_dir.join("old-scan-format").exists());
+    assert!(!work_dir.join("old-audit-format").exists());
+
+    let _ = fs::remove_dir_all(feed_dir);
+    let _ = fs::remove_dir_all(work_dir);
+}
+
+#[test]
+fn initialize_with_force_false_keeps_existing_audit_formats_when_feed_is_empty() {
+    let feed_dir = temp_test_dir("init-no-force-empty-audit-feed");
+    let work_dir = temp_test_dir("init-no-force-empty-audit-work");
+
+    let old_scan_workdir = work_dir.join("old-scan-format");
+    let old_audit_workdir = work_dir.join("old-audit-format");
+
+    fs::create_dir_all(&old_scan_workdir).unwrap();
+    fs::create_dir_all(&old_audit_workdir).unwrap();
+
+    let mut formats = HashMap::new();
+    formats.insert(
+        "old-scan-format".to_string(),
+        test_report_format(old_scan_workdir.clone()),
+    );
+
+    let mut audit_formats = HashMap::new();
+    audit_formats.insert(
+        "old-audit-format".to_string(),
+        test_report_format(old_audit_workdir.clone()),
+    );
+
+    let mut cache = FormatCache::new_for_test_with_audit_formats(
+        feed_dir.clone(),
+        work_dir.clone(),
+        false,
+        formats,
+        audit_formats,
+    );
+
+    cache.initialize_with_force(false).unwrap();
+
+    assert!(cache.get("old-scan-format").is_some());
+    assert!(cache.get_audit("old-audit-format").is_some());
+
+    assert!(work_dir.join("old-scan-format").exists());
+    assert!(work_dir.join("old-audit-format").exists());
+
+    let _ = fs::remove_dir_all(feed_dir);
+    let _ = fs::remove_dir_all(work_dir);
+}
+
+#[test]
+fn new_for_test_initializes_empty_audit_formats() {
+    let feed_dir = temp_test_dir("new-for-test-feed");
+    let work_dir = temp_test_dir("new-for-test-work");
+
+    let formats = HashMap::new();
+
+    let cache = FormatCache::new_for_test(feed_dir.clone(), work_dir.clone(), false, formats);
+
+    assert!(cache.list().is_empty());
+    assert!(cache.list_audit().is_empty());
+
+    let _ = fs::remove_dir_all(feed_dir);
+    let _ = fs::remove_dir_all(work_dir);
+}
+
+#[test]
+fn new_for_test_with_audit_formats_initializes_both_maps() {
+    let feed_dir = temp_test_dir("new-for-test-audit-feed");
+    let work_dir = temp_test_dir("new-for-test-audit-work");
+
+    let scan_workdir = work_dir.join("scan-format");
+    let audit_workdir = work_dir.join("audit-format");
+
+    fs::create_dir_all(&scan_workdir).unwrap();
+    fs::create_dir_all(&audit_workdir).unwrap();
+
+    let mut formats = HashMap::new();
+    formats.insert("scan-format".to_string(), test_report_format(scan_workdir));
+
+    let mut audit_formats = HashMap::new();
+    audit_formats.insert(
+        "audit-format".to_string(),
+        test_report_format(audit_workdir),
+    );
+
+    let cache = FormatCache::new_for_test_with_audit_formats(
+        feed_dir.clone(),
+        work_dir.clone(),
+        false,
+        formats,
+        audit_formats,
+    );
+
+    assert!(cache.get("scan-format").is_some());
+    assert!(cache.get_audit("audit-format").is_some());
+
+    assert!(cache.get("audit-format").is_none());
+    assert!(cache.get_audit("scan-format").is_none());
+
+    let _ = fs::remove_dir_all(feed_dir);
+    let _ = fs::remove_dir_all(work_dir);
 }
 
 fn assert_built_in_formats_registered(cache: &FormatCache, work_dir: &Path) {

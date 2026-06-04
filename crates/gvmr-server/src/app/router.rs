@@ -7,8 +7,9 @@ use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
+use crate::api::render_audit;
 use crate::{
-    api::{debug, health, render, report_format},
+    api::{audit_report_formats, debug, health, render, report_format},
     app::state::AppState,
     auth::middleware::require_auth,
     openapi::ApiDoc,
@@ -36,6 +37,23 @@ pub fn build_router(state: AppState) -> Router {
         )
         .route("/api/v1/render", post(render::render))
         .route("/api/v1/render/xml", post(render::render_xml))
+        .route(
+            "/api/v1/audit-report-formats",
+            get(audit_report_formats::get_audit_report_formats),
+        )
+        .route(
+            "/api/v1/audit-report-formats/{format_id}",
+            get(audit_report_formats::get_audit_report_format),
+        )
+        .route(
+            "/api/v1/audit-report-formats/sync",
+            post(audit_report_formats::sync_audit_report_formats),
+        )
+        .route("/api/v1/render/audit", post(render_audit::render_audit))
+        .route(
+            "/api/v1/render/audit/xml",
+            post(render_audit::render_audit_xml),
+        )
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
     let max_body_bytes = state.settings.max_body_bytes;

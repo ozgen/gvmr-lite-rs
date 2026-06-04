@@ -72,6 +72,19 @@ fn debug_formats_app_state_without_exposing_renderer_internals() {
     assert!(debug_output.contains("AppState"));
     assert!(debug_output.contains("settings"));
     assert!(debug_output.contains("format_cache"));
+
     assert!(debug_output.contains("renderer"));
     assert!(debug_output.contains("<dyn ReportRenderer>"));
+
+    assert!(debug_output.contains("xml_renderer"));
+    assert!(debug_output.contains("<XmlReportRenderer>"));
+
+    assert!(debug_output.contains("native_pdf_renderer"));
+    assert!(debug_output.contains("<NativePdfRenderer>"));
+
+    assert!(debug_output.contains("typst_report_renderer"));
+    assert!(debug_output.contains("<TypstReportRenderer>"));
+
+    assert!(debug_output.contains("audit_report_renderer"));
+    assert!(debug_output.contains("<AuditReportRenderer>"));
 }

@@ -4,9 +4,10 @@ use tokio::sync::RwLock;
 
 use crate::config::settings::Settings;
 use gvmr_core::service::{
-    format_cache::FormatCache, json_report_renderer::JsonReportRenderer,
-    native_pdf::NativePdfRenderer, report_renderer::ReportRenderer,
-    typst::renderer::TypstReportRenderer, xml_report_renderer::XmlReportRenderer,
+    audit::AuditReportRenderer, format_cache::FormatCache,
+    json_report_renderer::JsonReportRenderer, native_pdf::NativePdfRenderer,
+    report_renderer::ReportRenderer, typst::renderer::TypstReportRenderer,
+    xml_report_renderer::XmlReportRenderer,
 };
 
 #[derive(Clone)]
@@ -17,6 +18,7 @@ pub struct AppState {
     pub native_pdf_renderer: NativePdfRenderer,
     pub xml_renderer: XmlReportRenderer,
     pub typst_report_renderer: TypstReportRenderer,
+    pub audit_report_renderer: AuditReportRenderer,
 }
 
 impl AppState {
@@ -28,6 +30,7 @@ impl AppState {
             xml_renderer: XmlReportRenderer,
             native_pdf_renderer: NativePdfRenderer::new(),
             typst_report_renderer: TypstReportRenderer::technical_report(),
+            audit_report_renderer: AuditReportRenderer,
         }
     }
 
@@ -44,6 +47,7 @@ impl AppState {
             xml_renderer: XmlReportRenderer,
             native_pdf_renderer: NativePdfRenderer::new(),
             typst_report_renderer: TypstReportRenderer::technical_report(),
+            audit_report_renderer: AuditReportRenderer,
         }
     }
 }
@@ -58,6 +62,7 @@ impl std::fmt::Debug for AppState {
             .field("xml_renderer", &"<XmlReportRenderer>")
             .field("native_pdf_renderer", &"<NativePdfRenderer>")
             .field("typst_report_renderer", &"<TypstReportRenderer>")
+            .field("audit_report_renderer", &"<AuditReportRenderer>")
             .finish()
     }
 }

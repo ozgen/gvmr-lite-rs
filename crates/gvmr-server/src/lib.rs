@@ -63,6 +63,7 @@ pub(crate) fn build_app_state(settings: Settings) -> Result<AppState, AppError> 
 
     info!(
         formats_count = format_cache.list().len(),
+        audit_format_count = format_cache.list_audit().len(),
         "format cache initialized"
     );
 

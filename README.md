@@ -50,19 +50,19 @@ Currently implemented:
 ### Run
 
 ```bash
-cargo run
+cargo run -p gvmr-server
 ```
 
 With environment variables:
 
 ```bash
-GVMR_PORT=8084 GVMR_LOG_LEVEL=debug cargo run
+GVMR_PORT=8084 GVMR_LOG_LEVEL=debug cargo run -p gvmr-server
 ```
 
 Or using a `.env` file:
 
 ```bash
-cargo run
+cargo run -p gvmr-server
 ```
 
 ---

@@ -2,7 +2,7 @@ use serde_json::{Map, Value};
 
 use crate::api::dto::render as dto;
 
-use gvmr_core::domain::report_model::{self as domain, OciImage};
+use gvmr_core::domain::report_model as domain;
 
 pub fn report_json_to_envelope(report_json: &dto::ReportJson) -> domain::ReportEnvelope {
     domain::ReportEnvelope {
@@ -97,15 +97,38 @@ fn task_from_dto(task: &dto::Task) -> domain::Task {
         id: task.id.clone(),
         name: task.name.clone(),
         comment: task.comment.clone(),
+
         target: task.target.as_ref().map(task_target_from_dto),
-        agent_group: None,
-        oci_image_target: None,
+        agent_group: task.agent_group.as_ref().map(agent_group_from_dto),
+        oci_image_target: task
+            .oci_image_target
+            .as_ref()
+            .map(oci_image_target_from_dto),
+
         progress: value_to_string(task.progress.as_ref()),
     }
 }
 
-fn task_target_from_dto(target: &dto::TaskTarget) -> domain::TaskTarget {
+fn task_target_from_dto(target: &dto::TaskScopeObject) -> domain::TaskTarget {
     domain::TaskTarget {
+        id: target.id.clone(),
+        trash: value_to_string(target.trash.as_ref()),
+        name: target.name.clone(),
+        comment: target.comment.clone(),
+    }
+}
+
+fn oci_image_target_from_dto(target: &dto::TaskScopeObject) -> domain::OciImageTarget {
+    domain::OciImageTarget {
+        id: target.id.clone(),
+        trash: value_to_string(target.trash.as_ref()),
+        name: target.name.clone(),
+        comment: target.comment.clone(),
+    }
+}
+
+fn agent_group_from_dto(target: &dto::TaskScopeObject) -> domain::AgentGroup {
+    domain::AgentGroup {
         id: target.id.clone(),
         trash: value_to_string(target.trash.as_ref()),
         name: target.name.clone(),
@@ -173,7 +196,7 @@ fn report_result_from_dto(result: &dto::ReportResult) -> domain::ReportResult {
         comment: result.comment.clone(),
         creation_time: result.creation_time.clone(),
 
-        host: Some(result_host_from_dto(&result.host)),
+        host: result.host.as_ref().map(result_host_from_dto),
         port: result.port.clone(),
 
         nvt: result.nvt.as_ref().map(nvt_from_dto),
@@ -182,7 +205,8 @@ fn report_result_from_dto(result: &dto::ReportResult) -> domain::ReportResult {
         severity: value_to_string(result.severity.as_ref()),
         qod: result.qod.as_ref().map(qod_from_value),
         description: result.description.clone(),
-        oci_image: Some(OciImage::default()), // Not present in the DTO, so we set it to an empty value
+
+        oci_image: result.oci_image.as_ref().map(oci_image_from_dto),
 
         original_threat: result.original_threat.clone(),
         original_severity: value_to_string(result.original_severity.as_ref()),
@@ -208,6 +232,16 @@ fn result_host_from_dto(host: &dto::HostValue) -> domain::ResultHost {
             asset: host.asset.as_ref().map(asset_ref_from_dto),
             hostname: host.hostname.clone(),
         },
+    }
+}
+
+fn oci_image_from_dto(image: &dto::OciImage) -> domain::OciImage {
+    domain::OciImage {
+        name: image.name.clone(),
+        digest: image.digest.clone(),
+        registry: image.registry.clone(),
+        path: image.path.clone(),
+        short_name: image.short_name.clone(),
     }
 }
 

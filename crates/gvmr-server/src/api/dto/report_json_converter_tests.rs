@@ -953,3 +953,542 @@ fn deprecated_page_count_from_dto_maps_page_and_sets_deprecated_to_none() {
     assert_eq!(result.page.as_deref(), Some("42"));
     assert_eq!(result.deprecated, None);
 }
+
+#[test]
+fn report_json_to_envelope_maps_task_oci_image_target() {
+    let report_json = report_json_from_value(json!({
+        "filters": {
+            "term": "",
+            "keywords": {
+                "keyword": []
+            }
+        },
+        "task": {
+            "id": "task-id",
+            "name": "OCI image task",
+            "progress": 100,
+            "oci_image_target": {
+                "id": "oci-target-id",
+                "trash": 0,
+                "name": "cspmtcenter:25.0.7.B043",
+                "comment": "OCI image target comment"
+            }
+        },
+        "ports": {
+            "port": []
+        },
+        "results": {
+            "result": []
+        },
+        "result_count": {
+            "filtered": 0
+        },
+        "host": []
+    }));
+
+    let envelope = report_json_to_envelope(&report_json);
+    let task = envelope.report.task.unwrap();
+
+    assert_eq!(task.id.as_deref(), Some("task-id"));
+    assert_eq!(task.name.as_deref(), Some("OCI image task"));
+    assert_eq!(task.progress.as_deref(), Some("100"));
+
+    assert!(task.target.is_none());
+    assert!(task.agent_group.is_none());
+
+    let oci_image_target = task.oci_image_target.unwrap();
+
+    assert_eq!(oci_image_target.id.as_deref(), Some("oci-target-id"));
+    assert_eq!(oci_image_target.trash.as_deref(), Some("0"));
+    assert_eq!(
+        oci_image_target.name.as_deref(),
+        Some("cspmtcenter:25.0.7.B043")
+    );
+    assert_eq!(
+        oci_image_target.comment.as_deref(),
+        Some("OCI image target comment")
+    );
+}
+
+#[test]
+fn report_json_to_envelope_maps_task_agent_group() {
+    let report_json = report_json_from_value(json!({
+        "filters": {
+            "term": "",
+            "keywords": {
+                "keyword": []
+            }
+        },
+        "task": {
+            "id": "task-id",
+            "name": "Agent task",
+            "progress": 100,
+            "agent_group": {
+                "id": "agent-group-id",
+                "trash": false,
+                "name": "agent-group-1-1",
+                "comment": "Agent group comment"
+            }
+        },
+        "ports": {
+            "port": []
+        },
+        "results": {
+            "result": []
+        },
+        "result_count": {
+            "filtered": 0
+        },
+        "host": []
+    }));
+
+    let envelope = report_json_to_envelope(&report_json);
+    let task = envelope.report.task.unwrap();
+
+    assert_eq!(task.id.as_deref(), Some("task-id"));
+    assert_eq!(task.name.as_deref(), Some("Agent task"));
+    assert_eq!(task.progress.as_deref(), Some("100"));
+
+    assert!(task.target.is_none());
+    assert!(task.oci_image_target.is_none());
+
+    let agent_group = task.agent_group.unwrap();
+
+    assert_eq!(agent_group.id.as_deref(), Some("agent-group-id"));
+    assert_eq!(agent_group.trash.as_deref(), Some("false"));
+    assert_eq!(agent_group.name.as_deref(), Some("agent-group-1-1"));
+    assert_eq!(agent_group.comment.as_deref(), Some("Agent group comment"));
+}
+
+#[test]
+fn report_json_to_envelope_maps_result_without_host() {
+    let report_json = report_json_from_value(json!({
+        "filters": {
+            "term": "",
+            "keywords": {
+                "keyword": []
+            }
+        },
+        "ports": {
+            "port": []
+        },
+        "results": {
+            "result": [
+                {
+                    "id": "result-id",
+                    "name": "Finding without host",
+                    "port": "general/tcp",
+                    "threat": "High",
+                    "severity": 8.0,
+                    "qod": {
+                        "value": 70
+                    },
+                    "description": "Description"
+                }
+            ]
+        },
+        "result_count": {
+            "filtered": 1
+        },
+        "host": []
+    }));
+
+    let envelope = report_json_to_envelope(&report_json);
+    let results = envelope.report.results.unwrap();
+
+    assert_eq!(results.result.len(), 1);
+
+    let result = &results.result[0];
+
+    assert_eq!(result.id.as_deref(), None);
+    assert_eq!(result.name.as_deref(), Some("Finding without host"));
+    assert_eq!(result.host, None);
+    assert_eq!(result.port.as_deref(), Some("general/tcp"));
+    assert_eq!(result.threat.as_deref(), Some("High"));
+    assert_eq!(result.severity.as_deref(), Some("8.0"));
+    assert_eq!(result.description.as_deref(), Some("Description"));
+}
+
+#[test]
+fn report_json_to_envelope_maps_result_oci_image() {
+    let image_ref = "oci://registry.example.local/project/example-image:1.2.3".to_string();
+    let image_display_name = "example-image:1.2.3 (amd64)".to_string();
+    let image_digest =
+        "sha256:1111111111111111111111111111111111111111111111111111111111111111".to_string();
+
+    let report_json = report_json_from_value(json!({
+        "filters": {
+            "term": "",
+            "keywords": {
+                "keyword": []
+            }
+        },
+        "ports": {
+            "port": []
+        },
+        "results": {
+            "result": [
+                {
+                    "@attrs": {
+                        "id": "result-1"
+                    },
+                    "name": "OCI image finding",
+                    "host": {
+                        "#text": image_display_name,
+                        "hostname": image_ref
+                    },
+                    "port": "general/tcp",
+                    "threat": "Critical",
+                    "severity": 10.0,
+                    "qod": {
+                        "value": 70,
+                        "type": "package"
+                    },
+                    "description": "OCI image finding description",
+                    "oci_image": {
+                        "name": image_ref,
+                        "digest": image_digest,
+                        "registry": "registry.example.local",
+                        "path": "project",
+                        "short_name": "example-image:1.2.3"
+                    }
+                }
+            ]
+        },
+        "result_count": {
+            "filtered": 1
+        },
+        "host": []
+    }));
+
+    let envelope = report_json_to_envelope(&report_json);
+    let results = envelope.report.results.unwrap();
+
+    assert_eq!(results.result.len(), 1);
+
+    let result = &results.result[0];
+
+    assert_eq!(result.id.as_deref(), Some("result-1"));
+    assert_eq!(result.name.as_deref(), Some("OCI image finding"));
+    assert_eq!(result.port.as_deref(), Some("general/tcp"));
+    assert_eq!(result.threat.as_deref(), Some("Critical"));
+    assert_eq!(result.severity.as_deref(), Some("10.0"));
+    assert_eq!(
+        result.description.as_deref(),
+        Some("OCI image finding description")
+    );
+
+    let host = result.host.as_ref().unwrap();
+
+    assert_eq!(host.text.as_deref(), Some("example-image:1.2.3 (amd64)"));
+    assert_eq!(
+        host.hostname.as_deref(),
+        Some("oci://registry.example.local/project/example-image:1.2.3")
+    );
+
+    let oci_image = result.oci_image.as_ref().unwrap();
+
+    assert_eq!(
+        oci_image.name.as_deref(),
+        Some("oci://registry.example.local/project/example-image:1.2.3")
+    );
+    assert_eq!(
+        oci_image.digest.as_deref(),
+        Some("sha256:1111111111111111111111111111111111111111111111111111111111111111")
+    );
+    assert_eq!(
+        oci_image.registry.as_deref(),
+        Some("registry.example.local")
+    );
+    assert_eq!(oci_image.path.as_deref(), Some("project"));
+    assert_eq!(oci_image.short_name.as_deref(), Some("example-image:1.2.3"));
+}
+
+#[test]
+fn report_json_to_envelope_maps_oci_image_report_flow() {
+    let image_ref = "oci://registry.example.local/project/example-image:1.2.3";
+    let image_display_name = "example-image:1.2.3 (amd64)";
+    let image_digest = "sha256:1111111111111111111111111111111111111111111111111111111111111111";
+
+    let report_json = report_json_from_value(json!({
+        "@attrs": {
+            "id": "report-1",
+            "format_id": "format-1"
+        },
+        "scan_run_status": "Done",
+        "filters": {
+            "term": "",
+            "keywords": {
+                "keyword": []
+            }
+        },
+        "task": {
+            "id": "task-1",
+            "name": "OCI image task",
+            "progress": 100,
+            "oci_image_target": {
+                "id": "oci-target-1",
+                "trash": 0,
+                "name": "example-image:1.2.3",
+                "comment": ""
+            }
+        },
+        "ports": {
+            "@attrs": {
+                "start": 1,
+                "max": 1
+            },
+            "count": 1,
+            "port": [
+                {
+                    "#text": "general/tcp",
+                    "host": image_display_name,
+                    "threat": "Critical",
+                    "severity": 10.0
+                }
+            ]
+        },
+        "results": {
+            "@attrs": {
+                "start": 1,
+                "max": 2
+            },
+            "result": [
+                {
+                    "@attrs": {
+                        "id": "result-1"
+                    },
+                    "name": "Critical OCI image finding",
+                    "host": {
+                        "#text": image_display_name,
+                        "hostname": image_ref
+                    },
+                    "port": "general/tcp",
+                    "threat": "Critical",
+                    "severity": 10.0,
+                    "qod": {
+                        "value": 70
+                    },
+                    "description": "Critical OCI image finding description",
+                    "oci_image": {
+                        "name": image_ref,
+                        "digest": image_digest,
+                        "registry": "registry.example.local",
+                        "path": "project",
+                        "short_name": "example-image:1.2.3"
+                    }
+                },
+                {
+                    "@attrs": {
+                        "id": "result-2"
+                    },
+                    "name": "High OCI image finding",
+                    "host": {
+                        "#text": image_display_name,
+                        "hostname": image_ref
+                    },
+                    "port": "general/tcp",
+                    "threat": "High",
+                    "severity": 8.0,
+                    "qod": {
+                        "value": 70
+                    },
+                    "description": "High OCI image finding description",
+                    "oci_image": {
+                        "name": image_ref,
+                        "digest": image_digest,
+                        "registry": "registry.example.local",
+                        "path": "project",
+                        "short_name": "example-image:1.2.3"
+                    }
+                }
+            ]
+        },
+        "result_count": {
+            "full": 2,
+            "filtered": 2,
+            "critical": {
+                "full": 1,
+                "filtered": 1
+            },
+            "high": {
+                "full": 1,
+                "filtered": 1
+            }
+        },
+        "hosts": {
+            "count": 1
+        },
+        "host": [
+            {
+                "ip": image_display_name,
+                "start": "2026-01-01T10:00:00Z",
+                "end": "2026-01-01T10:05:00Z",
+                "port_count": {
+                    "page": 1
+                },
+                "result_count": {
+                    "page": 2,
+                    "critical": {
+                        "page": 1
+                    },
+                    "high": {
+                        "page": 1
+                    }
+                }
+            }
+        ]
+    }));
+
+    let envelope = report_json_to_envelope(&report_json);
+
+    assert_eq!(envelope.id.as_deref(), Some("report-1"));
+    assert_eq!(envelope.format_id.as_deref(), Some("format-1"));
+
+    let task = envelope.report.task.as_ref().unwrap();
+
+    assert_eq!(task.id.as_deref(), Some("task-1"));
+    assert_eq!(task.name.as_deref(), Some("OCI image task"));
+    assert!(task.target.is_none());
+    assert!(task.agent_group.is_none());
+
+    let oci_image_target = task.oci_image_target.as_ref().unwrap();
+
+    assert_eq!(oci_image_target.id.as_deref(), Some("oci-target-1"));
+    assert_eq!(
+        oci_image_target.name.as_deref(),
+        Some("example-image:1.2.3")
+    );
+
+    let ports = envelope.report.ports.as_ref().unwrap();
+
+    assert_eq!(ports.count.as_deref(), Some("1"));
+    assert_eq!(ports.port.len(), 1);
+    assert_eq!(ports.port[0].text.as_deref(), Some("general/tcp"));
+    assert_eq!(ports.port[0].host.as_deref(), Some(image_display_name));
+    assert_eq!(ports.port[0].threat.as_deref(), Some("Critical"));
+
+    let host = envelope
+        .report
+        .hosts_detail
+        .first()
+        .expect("expected one host entry");
+
+    assert_eq!(host.ip.as_deref(), Some(image_display_name));
+    assert_eq!(host.port_count.as_ref().unwrap().page.as_deref(), Some("1"));
+
+    let host_result_count = host.result_count.as_ref().unwrap();
+
+    assert_eq!(host_result_count.page.as_deref(), Some("2"));
+    assert_eq!(
+        host_result_count.critical.as_ref().unwrap().page.as_deref(),
+        Some("1")
+    );
+    assert_eq!(
+        host_result_count.high.as_ref().unwrap().page.as_deref(),
+        Some("1")
+    );
+
+    let result_count = envelope.report.result_count.as_ref().unwrap();
+
+    assert_eq!(result_count.full.as_deref(), Some("2"));
+    assert_eq!(result_count.filtered.as_deref(), Some("2"));
+
+    let results = envelope.report.results.as_ref().unwrap();
+
+    assert_eq!(results.result.len(), 2);
+
+    let first = &results.result[0];
+
+    assert_eq!(first.id.as_deref(), Some("result-1"));
+    assert_eq!(first.name.as_deref(), Some("Critical OCI image finding"));
+    assert_eq!(first.threat.as_deref(), Some("Critical"));
+    assert_eq!(first.port.as_deref(), Some("general/tcp"));
+
+    let first_host = first.host.as_ref().unwrap();
+
+    assert_eq!(first_host.text.as_deref(), Some(image_display_name));
+    assert_eq!(first_host.hostname.as_deref(), Some(image_ref));
+
+    let first_oci_image = first.oci_image.as_ref().unwrap();
+
+    assert_eq!(first_oci_image.name.as_deref(), Some(image_ref));
+    assert_eq!(first_oci_image.digest.as_deref(), Some(image_digest));
+    assert_eq!(
+        first_oci_image.registry.as_deref(),
+        Some("registry.example.local")
+    );
+    assert_eq!(first_oci_image.path.as_deref(), Some("project"));
+    assert_eq!(
+        first_oci_image.short_name.as_deref(),
+        Some("example-image:1.2.3")
+    );
+}
+
+#[test]
+fn results_from_dto_keeps_oci_image_result_and_filters_log_result() {
+    let report_json = report_json_from_value(json!({
+        "filters": {
+            "term": "",
+            "keywords": {
+                "keyword": []
+            }
+        },
+        "ports": {
+            "port": []
+        },
+        "results": {
+            "result": [
+                {
+                    "name": "OCI critical result",
+                    "host": {
+                        "text": "cspmtcenter:25.0.7.B043 (amd64)",
+                        "hostname": "oci://ct-harborv1.devel.greenbone.net/euleros/cspmtcenter:25.0.7.B043"
+                    },
+                    "port": "general/tcp",
+                    "threat": "Critical",
+                    "severity": 10.0,
+                    "oci_image": {
+                        "name": "oci://ct-harborv1.devel.greenbone.net/euleros/cspmtcenter:25.0.7.B043",
+                        "digest": "sha256:106b4220477872c6bc4de04da7f1dfd84211809cf737e72eef7d91f41ab146e9",
+                        "registry": "ct-harborv1.devel.greenbone.net",
+                        "path": "euleros",
+                        "short_name": "cspmtcenter:25.0.7.B043"
+                    }
+                },
+                {
+                    "name": "OCI log result",
+                    "host": {
+                        "text": "cspmtcenter:25.0.7.B043 (amd64)",
+                        "hostname": "oci://ct-harborv1.devel.greenbone.net/euleros/cspmtcenter:25.0.7.B043"
+                    },
+                    "port": "general/tcp",
+                    "threat": "Log",
+                    "severity": 0.0,
+                    "oci_image": {
+                        "name": "oci://ct-harborv1.devel.greenbone.net/euleros/cspmtcenter:25.0.7.B043",
+                        "digest": "sha256:106b4220477872c6bc4de04da7f1dfd84211809cf737e72eef7d91f41ab146e9",
+                        "registry": "ct-harborv1.devel.greenbone.net",
+                        "path": "euleros",
+                        "short_name": "cspmtcenter:25.0.7.B043"
+                    }
+                }
+            ]
+        },
+        "result_count": {
+            "filtered": 2
+        },
+        "host": []
+    }));
+
+    let envelope = report_json_to_envelope(&report_json);
+    let results = envelope.report.results.unwrap();
+
+    assert_eq!(results.result.len(), 1);
+
+    let result = &results.result[0];
+
+    assert_eq!(result.name.as_deref(), Some("OCI critical result"));
+    assert_eq!(result.threat.as_deref(), Some("Critical"));
+    assert!(result.oci_image.is_some());
+}

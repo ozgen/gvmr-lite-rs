@@ -31,10 +31,15 @@ pub const RESULT_KEY_ORDER: &[&str] = &[
     "severity",
     "qod",
     "description",
+    "oci_image",
     "original_threat",
     "original_severity",
     "compliance",
+    "delta",
+    "notes",
+    "overrides",
     "detection",
+    "cve",
 ];
 
 pub const HOST_KEY_ORDER: &[&str] = &[

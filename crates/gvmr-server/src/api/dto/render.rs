@@ -175,6 +175,18 @@ pub struct Nvt {
     pub extra: Map<String, Value>,
 }
 
+#[derive(Debug, Deserialize, Serialize, ToSchema, Default)]
+pub struct OciImage {
+    pub name: Option<String>,
+    pub digest: Option<String>,
+    pub registry: Option<String>,
+    pub path: Option<String>,
+    pub short_name: Option<String>,
+
+    #[serde(flatten)]
+    pub extra: Map<String, Value>,
+}
+
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct ReportResult {
     #[serde(rename = "@attrs")]
@@ -186,7 +198,7 @@ pub struct ReportResult {
     pub comment: Option<String>,
     pub creation_time: Option<String>,
 
-    pub host: HostValue,
+    pub host: Option<HostValue>,
     pub port: Option<String>,
 
     pub nvt: Option<Nvt>,
@@ -205,6 +217,8 @@ pub struct ReportResult {
     pub overrides: Option<Map<String, Value>>,
     pub detection: Option<Detection>,
     pub cve: Option<Map<String, Value>>,
+
+    pub oci_image: Option<OciImage>,
 
     #[serde(flatten)]
     pub extra: Map<String, Value>,
@@ -317,7 +331,7 @@ pub struct Ports {
 }
 
 #[derive(Debug, Deserialize, Serialize, ToSchema, Default)]
-pub struct TaskTarget {
+pub struct TaskScopeObject {
     pub id: Option<String>,
     pub trash: Option<Value>,
     pub name: Option<String>,
@@ -327,13 +341,18 @@ pub struct TaskTarget {
     pub extra: Map<String, Value>,
 }
 
+pub type TaskTarget = TaskScopeObject;
+
 #[derive(Debug, Deserialize, Serialize, ToSchema, Default)]
 pub struct Task {
     pub id: Option<String>,
     pub name: Option<String>,
     pub comment: Option<String>,
     pub progress: Option<Value>,
-    pub target: Option<TaskTarget>,
+
+    pub target: Option<TaskScopeObject>,
+    pub oci_image_target: Option<TaskScopeObject>,
+    pub agent_group: Option<TaskScopeObject>,
 
     #[serde(flatten)]
     pub extra: Map<String, Value>,

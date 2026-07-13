@@ -12,7 +12,7 @@ All configuration variables use the `GVMR_` prefix.
 | `GVMR_REPORT_FORMATS_FEED_DIR` | `/var/lib/gvm/data-objects/gvmd/report-formats` | Source directory containing report format files and related assets   |
 | `GVMR_WORK_DIR`                |                           `/tmp/gvmr-lite/work` | Working directory used by the service                                |
 | `GVMR_REBUILD_ON_START`        |                                          `true` | Rebuild or rematerialize cached report formats on startup            |
-| `GVMR_MAX_BODY_BYTES`          |                                      `52428800` | Maximum accepted HTTP request body size in bytes                     |
+| `GVMR_MAX_BODY_BYTES`          |                                   `536,870,912` | Maximum accepted HTTP request body size in bytes (512 mb)            |
 | `GVMR_EXPERIMENTAL_ENABLED`    |                                         `false` | Enable experimental built-in Rust renderers such as Typst/native PDF |
 
 Derived internally:

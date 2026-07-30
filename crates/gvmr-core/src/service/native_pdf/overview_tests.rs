@@ -209,6 +209,39 @@ fn container_image_report() -> ReportEnvelope {
     )
 }
 
+fn long_host_overview_report() -> ReportEnvelope {
+    parse_report(
+        r#"
+        <report>
+            <report id="inner-report-id">
+                <scan_run_status>Done</scan_run_status>
+
+                <result_count>
+                    <full>2</full>
+                    <filtered>2</filtered>
+                </result_count>
+
+                <results>
+                    <result id="result-1">
+                        <host>
+                            very-long-hostname-that-should-wrap-across-multiple-lines.example.test
+                        </host>
+                        <name>High Finding</name>
+                        <threat>High</threat>
+                    </result>
+
+                    <result id="result-2">
+                        <host>192.0.2.10</host>
+                        <name>Medium Finding</name>
+                        <threat>Medium</threat>
+                    </result>
+                </results>
+            </report>
+        </report>
+        "#,
+    )
+}
+
 #[test]
 fn build_overview_rows_groups_by_host_and_adds_total_row() {
     let report = overview_report();
@@ -473,4 +506,45 @@ fn write_result_overview_handles_empty_results() {
 
     assert_eq!(document.pdf.page_count(), 1);
     assert!(document.pdf.ok());
+}
+
+#[test]
+fn write_result_overview_handles_single_line_host_values() {
+    let report = overview_report();
+    let mut document = NativePdfDocument::new(&report);
+
+    document.write_result_overview();
+
+    assert_eq!(document.pdf.page_count(), 1);
+    assert!(document.pdf.ok());
+}
+
+#[test]
+fn write_result_overview_handles_multi_line_host_values() {
+    let report = long_host_overview_report();
+    let mut document = NativePdfDocument::new(&report);
+
+    document.write_result_overview();
+
+    assert!(document.pdf.page_count() >= 1);
+    assert!(document.pdf.ok());
+}
+
+#[test]
+fn build_overview_rows_preserves_long_host_display_value() {
+    let report = long_host_overview_report();
+    let document = NativePdfDocument::new(&report);
+
+    let rows = document.build_overview_rows();
+
+    assert_eq!(rows.len(), 3);
+
+    let long_host = rows
+        .iter()
+        .find(|row| row.display.contains("very-long-hostname-that-should-wrap"))
+        .expect("expected long host overview row");
+
+    assert_eq!(long_host.high, 1);
+    assert_eq!(long_host.medium, 0);
+    assert!(!long_host.is_total);
 }

@@ -114,45 +114,67 @@ impl<'a> NativePdfDocument<'a> {
     }
 
     pub(crate) fn write_target_metadata(&mut self, results: &[ReportResult]) {
-        if self.target != ReportTargetKind::ContainerImage {
-            return;
-        }
-
         let Some(result) = results.first() else {
             return;
         };
 
         self.pdf.set_font("Helvetica", "", Unit::pt(8.0));
 
-        if let Some(name) = result.image_full_name() {
-            self.pdf.cell_format(
-                Unit::mm(CONTENT_WIDTH_MM),
-                Unit::mm(5.0),
-                &format!("Image name {}", clean_text(name)),
-                "",
-                1,
-                "L",
-                false,
-                0,
-                "",
-            );
-        }
+        match self.target {
+            ReportTargetKind::Host => {}
 
-        if let Some(digest) = result.image_digest() {
-            self.pdf.cell_format(
-                Unit::mm(CONTENT_WIDTH_MM),
-                Unit::mm(5.0),
-                &format!("Image digest {}", clean_text(digest)),
-                "",
-                1,
-                "L",
-                false,
-                0,
-                "",
-            );
+            ReportTargetKind::Agent => {
+                let address = result.target_address().map(str::to_owned);
+
+                let (hostname, agent_id) = self
+                    .host_detail_for_result(result)
+                    .map(|host| {
+                        (
+                            host.hostname().map(str::to_owned),
+                            host.agent_id().map(str::to_owned),
+                        )
+                    })
+                    .unwrap_or_default();
+
+                if let Some(address) = address {
+                    self.write_metadata_line("Host", &address);
+                }
+
+                if let Some(hostname) = hostname {
+                    self.write_metadata_line("Hostname", &hostname);
+                }
+
+                if let Some(agent_id) = agent_id {
+                    self.write_metadata_line("Agent ID", &agent_id);
+                }
+            }
+
+            ReportTargetKind::ContainerImage => {
+                if let Some(name) = result.image_full_name() {
+                    self.write_metadata_line("Image name", name);
+                }
+
+                if let Some(digest) = result.image_digest() {
+                    self.write_metadata_line("Image digest", digest);
+                }
+            }
         }
 
         self.pdf.ln(Unit::mm(2.0));
+    }
+
+    fn write_metadata_line(&mut self, label: &str, value: &str) {
+        self.pdf.cell_format(
+            Unit::mm(CONTENT_WIDTH_MM),
+            Unit::mm(5.0),
+            &format!("{label} {}", clean_text(value)),
+            "",
+            1,
+            "L",
+            false,
+            0,
+            "",
+        );
     }
 
     pub(crate) fn write_service_table(&mut self, target: &str, results: &[ReportResult]) {
@@ -396,7 +418,16 @@ impl<'a> NativePdfDocument<'a> {
         match self.target {
             ReportTargetKind::Host => target.to_string(),
 
-            ReportTargetKind::Agent => target.to_string(),
+            ReportTargetKind::Agent => {
+                let agent_id = results
+                    .first()
+                    .and_then(|result| self.agent_id_for_result(result));
+
+                match agent_id {
+                    Some(agent_id) => format!("{target} ({agent_id})"),
+                    None => target.to_string(),
+                }
+            }
 
             ReportTargetKind::ContainerImage => {
                 let arch_suffix = results

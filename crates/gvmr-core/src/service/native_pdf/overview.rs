@@ -28,9 +28,20 @@ impl<'a> NativePdfDocument<'a> {
         self.set_link_here(self.toc_link("1"), page);
         self.write_heading("1 Result Overview", 1);
 
+        let target_width = 82.0;
+        let metric_width = (CONTENT_WIDTH_MM - target_width) / 5.0;
+
+        let widths = [
+            target_width,
+            metric_width,
+            metric_width,
+            metric_width,
+            metric_width,
+            metric_width,
+        ];
+
         let target_header = self.target.overview_column();
         let headers = [target_header, "Critical", "High", "Medium", "Low", "Log"];
-        let widths = [55.0, 24.0, 24.0, 24.0, 24.0, 24.0];
 
         self.pdf.set_font("Helvetica", "B", Unit::pt(8.0));
         self.pdf.set_fill_color(RGB::new(220, 230, 240));
@@ -60,8 +71,75 @@ impl<'a> NativePdfDocument<'a> {
                 self.host_links.get(&row.key).copied().unwrap_or(0)
             };
 
-            let cells = [
-                row.display,
+            let has_multiple_lines = row.display.lines().count() > 1;
+            let row_height = if has_multiple_lines { 10.0 } else { 6.0 };
+
+            self.ensure_space(row_height);
+
+            let (start_x, start_y) = self.pdf.get_xy();
+
+            /*
+             * Draw the target cell manually because cell_format does not
+             * support a two-line value within one bordered table cell.
+             */
+            self.pdf.rect(
+                start_x,
+                start_y,
+                Unit::mm(widths[0]),
+                Unit::mm(row_height),
+                "D",
+            );
+
+            let is_target_link = !row.is_total && host_link != 0;
+
+            if is_target_link {
+                self.pdf.set_text_color(RGB::new(0, 90, 180));
+            } else {
+                self.pdf.set_text_color(RGB::new(0, 0, 0));
+            }
+
+            let display_lines = row.display.lines().collect::<Vec<_>>();
+            let line_height = 4.0;
+
+            let first_line_y = start_y + Unit::mm(1.0);
+
+            if let Some(first_line) = display_lines.first() {
+                self.pdf.set_xy(start_x + Unit::mm(2.0), first_line_y);
+
+                self.pdf.cell_format(
+                    Unit::mm(widths[0] - 4.0),
+                    Unit::mm(line_height),
+                    &clean_text(first_line),
+                    "",
+                    0,
+                    "L",
+                    false,
+                    if is_target_link { host_link } else { 0 },
+                    "",
+                );
+            }
+
+            if let Some(second_line) = display_lines.get(1) {
+                self.pdf
+                    .set_xy(start_x + Unit::mm(2.0), start_y + Unit::mm(5.0));
+
+                self.pdf.cell_format(
+                    Unit::mm(widths[0] - 4.0),
+                    Unit::mm(line_height),
+                    &clean_text(second_line),
+                    "",
+                    0,
+                    "L",
+                    false,
+                    if is_target_link { host_link } else { 0 },
+                    "",
+                );
+            }
+
+            self.pdf.set_text_color(RGB::new(0, 0, 0));
+            self.pdf.set_xy(start_x + Unit::mm(widths[0]), start_y);
+
+            let values = [
                 row.critical.to_string(),
                 row.high.to_string(),
                 row.medium.to_string(),
@@ -69,31 +147,24 @@ impl<'a> NativePdfDocument<'a> {
                 row.log.to_string(),
             ];
 
-            for (index, cell) in cells.iter().enumerate() {
-                let is_target_cell = index == 0 && !row.is_total && host_link != 0;
-
-                if is_target_cell {
-                    self.pdf.set_text_color(RGB::new(0, 90, 180));
-                } else {
-                    self.pdf.set_text_color(RGB::new(0, 0, 0));
-                }
-
+            for (index, value) in values.iter().enumerate() {
                 self.pdf.cell_format(
-                    Unit::mm(widths[index]),
-                    Unit::mm(6.0),
-                    &clean_text(cell),
+                    Unit::mm(widths[index + 1]),
+                    Unit::mm(row_height),
+                    value,
                     "1",
                     0,
                     "C",
                     false,
-                    if is_target_cell { host_link } else { 0 },
+                    0,
                     "",
                 );
             }
 
-            self.pdf.set_text_color(RGB::new(0, 0, 0));
-            self.pdf.ln(Unit::negative());
+            self.pdf.set_xy(start_x, start_y + Unit::mm(row_height));
         }
+
+        self.pdf.set_text_color(RGB::new(0, 0, 0));
 
         self.write_filter_summary_text();
         self.write_authentication_table("1.1");
@@ -199,6 +270,7 @@ impl<'a> NativePdfDocument<'a> {
             total_log += log;
 
             let display = self.target_display_name(&target, &results);
+            let display = self.overview_target_display(&display);
 
             rows.push(OverviewRow {
                 key: target,
@@ -224,6 +296,31 @@ impl<'a> NativePdfDocument<'a> {
         });
 
         rows
+    }
+
+    /*
+     * Convert:
+     *
+     *   IP (agent ID)
+     *
+     * into:
+     *
+     *   IP
+     *   (agent ID)
+     *
+     * only for the overview table.
+     */
+    fn overview_target_display(&self, display: &str) -> String {
+        if self.target != ReportTargetKind::Agent {
+            return display.to_string();
+        }
+
+        match display.rsplit_once(" (") {
+            Some((address, agent_id)) => {
+                format!("{address}\n({agent_id}")
+            }
+            None => display.to_string(),
+        }
     }
 
     fn write_filter_summary_text(&mut self) {

@@ -71,10 +71,12 @@ fn agent_report() -> ReportEnvelope {
 
                 <host>
                     <ip>192.0.2.10</ip>
+
                     <detail>
                         <name>agentID</name>
                         <value>agent-a</value>
                     </detail>
+
                     <detail>
                         <name>hostname</name>
                         <value>host-a.example.test</value>
@@ -83,10 +85,12 @@ fn agent_report() -> ReportEnvelope {
 
                 <host>
                     <ip>192.0.2.20</ip>
+
                     <detail>
                         <name>agentID</name>
                         <value>agent-b</value>
                     </detail>
+
                     <detail>
                         <name>hostname</name>
                         <value>host-b.example.test</value>
@@ -96,15 +100,26 @@ fn agent_report() -> ReportEnvelope {
                 <results>
                     <result id="result-1">
                         <host>192.0.2.10</host>
+                        <port>general/tcp</port>
                         <name>Finding A</name>
+                        <threat>High</threat>
+                        <severity>8.0</severity>
                     </result>
+
                     <result id="result-2">
                         <host>192.0.2.20</host>
+                        <port>general/tcp</port>
                         <name>Finding B</name>
+                        <threat>Medium</threat>
+                        <severity>5.0</severity>
                     </result>
+
                     <result id="result-3">
                         <host>192.0.2.10</host>
+                        <port>general/tcp</port>
                         <name>Finding C</name>
+                        <threat>Low</threat>
+                        <severity>2.0</severity>
                     </result>
                 </results>
             </report>
@@ -291,15 +306,21 @@ fn agent_id_for_result_returns_none_when_host_detail_has_no_agent_id() {
 }
 
 #[test]
-fn target_key_for_result_uses_agent_id_when_target_kind_is_agent() {
+fn target_key_for_result_uses_host_when_target_kind_is_agent() {
     let report = agent_report();
     let document = NativePdfDocument::new(&report);
-    let result = &report.report.results.as_ref().unwrap().result[0];
+
+    let result = report
+        .report
+        .results
+        .as_ref()
+        .and_then(|results| results.result.first())
+        .expect("expected at least one result");
 
     assert_eq!(document.target, ReportTargetKind::Agent);
-    assert_eq!(document.target_key_for_result(result), "agent-a");
-}
 
+    assert_eq!(document.target_key_for_result(result), "192.0.2.10");
+}
 #[test]
 fn target_key_for_result_falls_back_to_host_when_agent_id_is_missing() {
     let report = host_report();
@@ -312,7 +333,7 @@ fn target_key_for_result_falls_back_to_host_when_agent_id_is_missing() {
 }
 
 #[test]
-fn group_results_by_target_groups_results_by_agent_id() {
+fn group_results_by_target_groups_agent_results_by_host() {
     let report = agent_report();
     let document = NativePdfDocument::new(&report);
 
@@ -321,12 +342,16 @@ fn group_results_by_target_groups_results_by_agent_id() {
     let grouped = document.group_results_by_target();
 
     assert_eq!(grouped.len(), 2);
-    assert_eq!(grouped["agent-a"].len(), 2);
-    assert_eq!(grouped["agent-b"].len(), 1);
 
-    assert_eq!(grouped["agent-a"][0].name.as_deref(), Some("Finding A"));
-    assert_eq!(grouped["agent-a"][1].name.as_deref(), Some("Finding C"));
-    assert_eq!(grouped["agent-b"][0].name.as_deref(), Some("Finding B"));
+    assert_eq!(grouped["192.0.2.10"].len(), 2);
+
+    assert_eq!(grouped["192.0.2.20"].len(), 1);
+
+    assert_eq!(grouped["192.0.2.10"][0].name.as_deref(), Some("Finding A"));
+
+    assert_eq!(grouped["192.0.2.10"][1].name.as_deref(), Some("Finding C"));
+
+    assert_eq!(grouped["192.0.2.20"][0].name.as_deref(), Some("Finding B"));
 }
 
 #[test]

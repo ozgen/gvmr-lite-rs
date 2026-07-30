@@ -358,17 +358,58 @@ fn write_results_per_host_writes_container_image_results() {
 }
 
 #[test]
-fn write_target_metadata_ignores_non_container_targets() {
+fn write_target_metadata_writes_host_metadata() {
     let report = host_report();
     let mut document = NativePdfDocument::new(&report);
 
+    document.target = ReportTargetKind::Host;
     document.pdf.add_page();
-    let initial_y = document.pdf.get_y();
 
-    let results = &report.report.results.as_ref().unwrap().result;
+    let initial_y = document.pdf.get_y().to_mm();
+
+    let results = &report
+        .report
+        .results
+        .as_ref()
+        .expect("expected report results")
+        .result;
+
     document.write_target_metadata(results);
 
-    assert_eq!(document.pdf.get_y().to_mm(), initial_y.to_mm());
+    let final_y = document.pdf.get_y().to_mm();
+
+    assert!(
+        final_y > initial_y,
+        "expected host metadata to advance Y: initial={initial_y}, final={final_y}"
+    );
+    assert!(document.pdf.ok());
+}
+
+#[test]
+fn write_target_metadata_writes_agent_metadata() {
+    let report = host_report();
+    let mut document = NativePdfDocument::new(&report);
+
+    document.target = ReportTargetKind::Agent;
+    document.pdf.add_page();
+
+    let initial_y = document.pdf.get_y().to_mm();
+
+    let results = &report
+        .report
+        .results
+        .as_ref()
+        .expect("expected report results")
+        .result;
+
+    document.write_target_metadata(results);
+
+    let final_y = document.pdf.get_y().to_mm();
+
+    assert!(
+        final_y > initial_y,
+        "expected agent metadata to advance Y: initial={initial_y}, final={final_y}"
+    );
     assert!(document.pdf.ok());
 }
 

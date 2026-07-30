@@ -422,7 +422,7 @@ fn prepare_toc_for_multi_host_report_numbers_hosts_in_sorted_order() {
 }
 
 #[test]
-fn prepare_toc_for_agent_report_groups_findings_by_threat() {
+fn prepare_toc_for_agent_report_groups_results_by_host() {
     let report = agent_report();
     let mut document = NativePdfDocument::new(&report);
 
@@ -434,12 +434,27 @@ fn prepare_toc_for_agent_report_groups_findings_by_threat() {
         .map(|entry| entry.number.as_str())
         .collect::<Vec<_>>();
 
-    assert_eq!(numbers, vec!["1", "2", "2.1", "2.1.1", "2.1.2"]);
+    assert_eq!(numbers, vec!["1", "2", "2.1", "2.1.1", "2.1.2",]);
 
+    assert_eq!(document.toc[0].title, "Result Overview");
     assert_eq!(document.toc[1].title, "Results per Agent");
-    assert_eq!(document.toc[2].title, "agent-a");
+
+    assert_eq!(document.toc[2].title, "192.0.2.10 (agent-a)");
+
     assert_eq!(document.toc[3].title, "High");
     assert_eq!(document.toc[4].title, "Low");
+
+    assert!(document.host_links.contains_key("192.0.2.10"));
+
+    assert!(document.finding_links.contains_key(&FindingKey {
+        host: "192.0.2.10".to_string(),
+        index: 0,
+    }));
+
+    assert!(document.finding_links.contains_key(&FindingKey {
+        host: "192.0.2.10".to_string(),
+        index: 1,
+    }));
 }
 
 #[test]

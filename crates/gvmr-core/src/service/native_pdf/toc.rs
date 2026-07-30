@@ -26,10 +26,12 @@ impl<'a> NativePdfDocument<'a> {
 
         if self.has_authentication_rows() {
             let auth_link = self.pdf.add_link();
+
             self.add_toc_entry("1.1", "Host Authentications", 2, auth_link, known_pages);
         }
 
         let results_link = self.pdf.add_link();
+
         self.add_toc_entry(
             "2",
             self.target.results_section_title(),
@@ -53,6 +55,7 @@ impl<'a> NativePdfDocument<'a> {
             if self.target.is_grouped_by_threat() {
                 for (threat_index, threat) in grouped_threats(results).iter().enumerate() {
                     let finding_number = format!("{host_number}.{}", threat_index + 1);
+
                     let finding_link = self.pdf.add_link();
 
                     let key = FindingKey {
@@ -67,6 +70,7 @@ impl<'a> NativePdfDocument<'a> {
             } else {
                 for (result_index, result) in results.iter().enumerate() {
                     let finding_number = format!("{host_number}.{}", result_index + 1);
+
                     let finding_link = self.pdf.add_link();
 
                     let key = FindingKey {
@@ -127,9 +131,7 @@ impl<'a> NativePdfDocument<'a> {
     }
 
     pub(crate) fn write_toc_entry(&mut self, entry: &TocEntry) {
-        let row_h = 5.3;
-
-        self.ensure_space(row_h + 1.0);
+        let line_h = 5.3;
 
         let number_x = 14.0;
         let title_x = 32.0;
@@ -144,6 +146,18 @@ impl<'a> NativePdfDocument<'a> {
         let title_font_size = if entry.level >= 3 { 8.0 } else { 8.5 };
         let dots_font_size = 8.5;
 
+        let title = clean_text(&entry.title);
+
+        let (first_title_line, second_title_line) = split_toc_target_title(&title, entry.level);
+
+        let row_h = if second_title_line.is_some() {
+            line_h * 2.0
+        } else {
+            line_h
+        };
+
+        self.ensure_space(row_h + 1.0);
+
         let y = self.pdf.get_y();
 
         self.pdf
@@ -152,9 +166,10 @@ impl<'a> NativePdfDocument<'a> {
         self.pdf.set_text_color(RGB::new(0, 90, 180));
 
         self.pdf.set_xy(Unit::mm(number_x), y);
+
         self.pdf.cell_format(
             Unit::mm(number_w),
-            Unit::mm(row_h),
+            Unit::mm(line_h),
             &entry.number,
             "",
             0,
@@ -164,14 +179,18 @@ impl<'a> NativePdfDocument<'a> {
             "",
         );
 
-        let title = clean_text(&entry.title);
-        let title = shorten_toc_title_for_width(&title, title_w, title_font_size);
+        /*
+         * First title line.
+         */
+        let first_title_line =
+            shorten_toc_title_for_width(&first_title_line, title_w, title_font_size);
 
         self.pdf.set_xy(Unit::mm(title_x), y);
+
         self.pdf.cell_format(
             Unit::mm(title_w),
-            Unit::mm(row_h),
-            &title,
+            Unit::mm(line_h),
+            &first_title_line,
             "",
             0,
             "L",
@@ -180,13 +199,33 @@ impl<'a> NativePdfDocument<'a> {
             "",
         );
 
+        if let Some(second_title_line) = second_title_line {
+            let second_title_line =
+                shorten_toc_title_for_width(&second_title_line, title_w, title_font_size);
+
+            self.pdf.set_xy(Unit::mm(title_x), y + Unit::mm(line_h));
+
+            self.pdf.cell_format(
+                Unit::mm(title_w),
+                Unit::mm(line_h),
+                &second_title_line,
+                "",
+                0,
+                "L",
+                false,
+                entry.link,
+                "",
+            );
+        }
+
         self.pdf.set_text_color(RGB::new(0, 0, 0));
         self.pdf.set_font("Helvetica", "", Unit::pt(dots_font_size));
 
         self.pdf.set_xy(Unit::mm(dots_x), y);
+
         self.pdf.cell_format(
             Unit::mm(dots_w),
-            Unit::mm(row_h),
+            Unit::mm(line_h),
             &toc_leader_dots(),
             "",
             0,
@@ -200,19 +239,33 @@ impl<'a> NativePdfDocument<'a> {
             .set_font("Helvetica", "", Unit::pt(title_font_size));
 
         self.pdf.set_xy(Unit::mm(page_x), y);
+
         self.pdf.cell_format(
             Unit::mm(page_w),
-            Unit::mm(row_h),
+            Unit::mm(line_h),
             &entry.page.to_string(),
             "",
             0,
             "R",
             false,
-            0,
+            entry.link,
             "",
         );
 
         self.pdf.set_y(y + Unit::mm(row_h));
+    }
+}
+
+fn split_toc_target_title(title: &str, level: usize) -> (String, Option<String>) {
+    if level != 2 {
+        return (title.to_string(), None);
+    }
+
+    match title.rsplit_once(" (") {
+        Some((address, agent_id)) if !address.is_empty() && !agent_id.is_empty() => {
+            (address.to_string(), Some(format!("({agent_id}")))
+        }
+        _ => (title.to_string(), None),
     }
 }
 

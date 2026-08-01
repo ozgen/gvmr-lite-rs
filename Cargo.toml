@@ -34,5 +34,5 @@ utoipa = "5.5.0"
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
 roxmltree = "0.21"
 
-serial_test = "3.5.0"
+serial_test = "4.0.1"
 tower = { version = "0.5", features = ["util"] }

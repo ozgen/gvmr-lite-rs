@@ -27,7 +27,10 @@ pub fn report_json_to_envelope(report_json: &dto::ReportJson) -> domain::ReportE
 fn report_json_to_inner_report(report_json: &dto::ReportJson) -> domain::InnerReport {
     domain::InnerReport {
         id: attr_string(report_json.attrs.as_ref(), "id"),
+        report_type: attr_string(report_json.attrs.as_ref(), "type"),
+
         gmp: report_json.gmp.as_ref().map(gmp_from_map),
+        delta: None,
         sort: None,
         filters: Some(filters_from_dto(&report_json.filters)),
         scan_run_status: report_json.scan_run_status.clone(),
@@ -50,6 +53,8 @@ fn report_json_to_inner_report(report_json: &dto::ReportJson) -> domain::InnerRe
         ports: Some(ports_from_dto(&report_json.ports)),
         results: Some(results_from_dto(&report_json.results)),
         result_count: Some(result_count_from_dto(&report_json.result_count)),
+        compliance_count: None,
+        compliance: None,
         severity: report_json.severity.as_ref().map(severity_from_dto),
 
         hosts_detail: report_json.host.iter().map(report_host_from_dto).collect(),
@@ -211,6 +216,8 @@ fn report_result_from_dto(result: &dto::ReportResult) -> domain::ReportResult {
         original_threat: result.original_threat.clone(),
         original_severity: value_to_string(result.original_severity.as_ref()),
         compliance: result.compliance.clone(),
+
+        delta: None,
     }
 }
 
@@ -383,6 +390,8 @@ fn report_host_from_dto(host: &dto::HostEntry) -> domain::ReportHost {
         end: host.end.clone(),
         port_count: host.port_count.as_ref().map(page_count_from_dto),
         result_count: host.result_count.as_ref().map(host_result_count_from_dto),
+        compliance_count: None,
+        host_compliance: None,
         detail: host.detail.iter().map(host_detail_from_dto).collect(),
     }
 }

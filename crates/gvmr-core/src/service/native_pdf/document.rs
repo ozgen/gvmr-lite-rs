@@ -23,6 +23,7 @@ pub(crate) struct NativePdfDocument<'a> {
     pub(crate) host_links: BTreeMap<String, usize>,
     pub(crate) finding_links: BTreeMap<FindingKey, usize>,
     pub(crate) toc: Vec<TocEntry>,
+    pub(crate) compliance_mode: bool,
 }
 
 impl<'a> NativePdfDocument<'a> {
@@ -107,15 +108,29 @@ impl<'a> NativePdfDocument<'a> {
             host_links: BTreeMap::new(),
             finding_links: BTreeMap::new(),
             toc: Vec::new(),
+            compliance_mode: false,
         }
     }
 
     pub(crate) fn render(&mut self) -> Result<Vec<u8>, NativePdfRenderError> {
         self.write_cover();
+        self.write_delta_report_metadata_after_contents();
         self.write_result_overview();
         self.write_results_per_host();
 
         self.output()
+    }
+
+    pub(crate) fn render_compliance_report(&mut self) {
+        self.compliance_mode = true;
+        self.write_cover();
+        self.write_delta_report_metadata_after_contents();
+        self.write_compliance_overview();
+        self.write_compliance_results_per_host();
+    }
+
+    pub(crate) fn set_compliance_mode(&mut self) {
+        self.compliance_mode = true;
     }
 
     pub(crate) fn set_link_here(&mut self, link: usize, page: usize) {

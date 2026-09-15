@@ -150,6 +150,57 @@ fn container_image_report() -> ReportEnvelope {
     )
 }
 
+fn delta_report(delta: &str) -> ReportEnvelope {
+    parse_report(&format!(
+        r#"
+        <report>
+            <report id="delta-report" type="delta">
+                <scan_run_status>Done</scan_run_status>
+                <host>
+                    <ip>192.0.2.10</ip>
+                </host>
+                <results>
+                    <result id="result-1">
+                        <host>192.0.2.10</host>
+                        <name>Delta finding</name>
+                        <threat>High</threat>
+                        <severity>8.0</severity>
+                        {delta}
+                    </result>
+                </results>
+            </report>
+        </report>
+        "#
+    ))
+}
+
+fn changed_delta_report(previous: Option<&str>, diff: Option<&str>) -> ReportEnvelope {
+    let previous = previous
+        .map(|value| {
+            format!(
+                r#"
+                <result id="previous-result">
+                    <name>{value}</name>
+                    <threat>High</threat>
+                    <severity>7.0</severity>
+                </result>
+                "#
+            )
+        })
+        .unwrap_or_default();
+    let diff = diff
+        .map(|value| format!("<diff>{value}</diff>"))
+        .unwrap_or_default();
+
+    delta_report(&format!("<delta>changed{previous}{diff}</delta>"))
+}
+
+fn render_results(report: &ReportEnvelope) -> NativePdfDocument<'_> {
+    let mut document = NativePdfDocument::new(report);
+    document.write_results_per_host();
+    document
+}
+
 #[test]
 fn grouped_threats_returns_known_threats_in_priority_order() {
     let report = container_image_report();
@@ -541,4 +592,51 @@ fn write_container_findings_by_threat_writes_return_links() {
 
     assert!(document.pdf.get_y().to_mm() > initial_y.to_mm());
     assert!(document.pdf.ok());
+}
+
+#[test]
+fn write_delta_findings_renders_same_new_and_gone_states() {
+    for state in ["same", "new", "gone"] {
+        let report = delta_report(&format!("<delta>{state}</delta>"));
+        let mut document = render_results(&report);
+
+        assert!(document.pdf.ok());
+        assert!(document.pdf.page_count() >= 1);
+    }
+}
+
+#[test]
+fn write_delta_findings_renders_changed_result_with_previous_and_diff() {
+    let report = changed_delta_report(Some("Previous finding"), Some("@@ -1 +1 @@\n-old\n+new"));
+    let mut document = render_results(&report);
+
+    assert!(document.pdf.ok());
+    assert!(document.pdf.page_count() >= 1);
+}
+
+#[test]
+fn write_delta_findings_handles_changed_result_without_previous_result() {
+    let report = changed_delta_report(None, Some("@@ -1 +1 @@\n-old\n+new"));
+    let mut document = render_results(&report);
+
+    assert!(document.pdf.ok());
+    assert!(document.pdf.page_count() >= 1);
+}
+
+#[test]
+fn write_delta_findings_handles_changed_result_without_diff() {
+    let report = changed_delta_report(Some("Previous finding"), None);
+    let mut document = render_results(&report);
+
+    assert!(document.pdf.ok());
+    assert!(document.pdf.page_count() >= 1);
+}
+
+#[test]
+fn write_results_per_host_preserves_non_delta_rendering() {
+    let report = host_report();
+    let mut document = render_results(&report);
+
+    assert!(document.pdf.ok());
+    assert!(document.pdf.page_count() >= 1);
 }

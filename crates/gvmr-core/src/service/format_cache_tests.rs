@@ -1,7 +1,8 @@
 use super::*;
 use crate::{
     domain::report_format_constants::{
-        BUILT_IN_NATIVE_PDF_TECHNICAL_ID, BUILT_IN_TYPST_TECHNICAL_ID,
+        BUILT_IN_NATIVE_PDF_COMPLIANCE_ID, BUILT_IN_NATIVE_PDF_TECHNICAL_ID,
+        BUILT_IN_TYPST_TECHNICAL_ID,
     },
     xml::report_format_parser::{ParsedReportFormat, ParsedReportFormatFile},
 };
@@ -33,10 +34,12 @@ fn initialize_with_force_parses_xml_and_caches_format() {
     assert!(cache.get("fmt-1").is_some());
     assert!(cache.get(BUILT_IN_TYPST_TECHNICAL_ID).is_some());
     assert!(cache.get(BUILT_IN_NATIVE_PDF_TECHNICAL_ID).is_some());
+    assert!(cache.get_audit(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID).is_some());
 
     assert!(work_dir.join("fmt-1").exists());
     assert!(work_dir.join(BUILT_IN_TYPST_TECHNICAL_ID).exists());
     assert!(work_dir.join(BUILT_IN_NATIVE_PDF_TECHNICAL_ID).exists());
+    assert!(work_dir.join(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID).exists());
 
     let _ = fs::remove_dir_all(feed_dir);
     let _ = fs::remove_dir_all(work_dir);
@@ -689,6 +692,46 @@ fn register_built_in_formats_is_noop_when_experimental_is_false() {
 }
 
 #[test]
+fn register_built_in_formats_separates_technical_and_compliance_namespaces() {
+    let feed_dir = temp_test_dir("register-builtins-namespaces-feed");
+    let work_dir = temp_test_dir("register-builtins-namespaces-work");
+
+    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, true);
+    cache.register_built_in_formats().unwrap();
+
+    assert!(cache.contains(BUILT_IN_NATIVE_PDF_TECHNICAL_ID));
+    assert!(!cache.contains_audit(BUILT_IN_NATIVE_PDF_TECHNICAL_ID));
+    assert!(cache.contains_audit(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID));
+    assert!(!cache.contains(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID));
+
+    let compliance = cache
+        .get_audit(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID)
+        .expect("compliance built-in should be registered");
+    assert_eq!(compliance.name, "Native PDF Compliance Report");
+    assert_eq!(compliance.extension, "pdf");
+    assert_eq!(compliance.content_type, "application/pdf");
+    assert!(work_dir.join(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID).exists());
+
+    let _ = fs::remove_dir_all(feed_dir);
+    let _ = fs::remove_dir_all(work_dir);
+}
+
+#[test]
+fn empty_feed_registers_compliance_built_in_in_audit_cache() {
+    let feed_dir = temp_test_dir("empty-feed-compliance-feed");
+    let work_dir = temp_test_dir("empty-feed-compliance-work");
+
+    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, true);
+    cache.initialize_with_force(false).unwrap();
+
+    assert!(cache.contains_audit(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID));
+    assert!(!cache.contains(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID));
+
+    let _ = fs::remove_dir_all(feed_dir);
+    let _ = fs::remove_dir_all(work_dir);
+}
+
+#[test]
 fn initialize_with_force_routes_audit_formats_to_audit_cache() {
     let feed_dir = temp_test_dir("init-audit-feed");
     let work_dir = temp_test_dir("init-audit-work");
@@ -892,9 +935,11 @@ fn new_for_test_with_audit_formats_initializes_both_maps() {
 fn assert_built_in_formats_registered(cache: &FormatCache, work_dir: &Path) {
     assert!(cache.get(BUILT_IN_TYPST_TECHNICAL_ID).is_some());
     assert!(cache.get(BUILT_IN_NATIVE_PDF_TECHNICAL_ID).is_some());
+    assert!(cache.get_audit(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID).is_some());
 
     assert!(work_dir.join(BUILT_IN_TYPST_TECHNICAL_ID).exists());
     assert!(work_dir.join(BUILT_IN_NATIVE_PDF_TECHNICAL_ID).exists());
+    assert!(work_dir.join(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID).exists());
 }
 
 fn parsed_file_with_content(name: &str, content: &[u8]) -> ParsedReportFormatFile {
@@ -949,7 +994,9 @@ fn temp_test_dir(name: &str) -> PathBuf {
 fn assert_built_in_formats_not_registered(cache: &FormatCache, work_dir: &Path) {
     assert!(cache.get(BUILT_IN_TYPST_TECHNICAL_ID).is_none());
     assert!(cache.get(BUILT_IN_NATIVE_PDF_TECHNICAL_ID).is_none());
+    assert!(cache.get_audit(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID).is_none());
 
     assert!(!work_dir.join(BUILT_IN_TYPST_TECHNICAL_ID).exists());
     assert!(!work_dir.join(BUILT_IN_NATIVE_PDF_TECHNICAL_ID).exists());
+    assert!(!work_dir.join(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID).exists());
 }

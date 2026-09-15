@@ -12,10 +12,16 @@ impl<'a> NativePdfDocument<'a> {
 
         self.pdf.set_y(Unit::mm(45.0));
         self.pdf.set_font("Helvetica", "", Unit::pt(18.0));
+        let title = if self.compliance_mode {
+            "Compliance Report"
+        } else {
+            "Scan Report"
+        };
+
         self.pdf.cell_format(
             Unit::mm(CONTENT_WIDTH_MM),
             Unit::mm(10.0),
-            "Scan Report",
+            title,
             "",
             1,
             "C",
@@ -55,10 +61,16 @@ impl<'a> NativePdfDocument<'a> {
 
         self.pdf.set_x(Unit::mm(35.0));
         self.pdf.set_font("Helvetica", "", Unit::pt(9.0));
+        let summary = if self.compliance_mode {
+            "This document reports on the results of an automatic compliance scan.".to_string()
+        } else {
+            view.summary_text()
+        };
+
         self.pdf.multi_cell(
             Unit::mm(140.0),
             Unit::mm(4.8),
-            &clean_text(&view.summary_text()),
+            &clean_text(&summary),
             "",
             "L",
             false,

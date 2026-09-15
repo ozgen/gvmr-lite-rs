@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use fpdf::{Pdf, RGB, Unit};
 
 use crate::{
-    domain::report_model::ReportResult,
+    domain::report_model::{DeltaState, ReportResult},
     service::pdf_renderer_helper::clean_text,
     service::report_view::{ReportTargetKind, grouped_threats, result_port, result_threat},
 };
@@ -382,7 +382,11 @@ impl<'a> NativePdfDocument<'a> {
                     threat.clone()
                 };
 
-                self.write_finding_card(&title, result);
+                if self.report.report.is_delta_report() {
+                    self.write_delta_finding(&title, result, target);
+                } else {
+                    self.write_finding_card(&title, result);
+                }
                 self.write_return_to_host_link(target);
 
                 self.pdf.ln(Unit::mm(6.0));
@@ -407,10 +411,49 @@ impl<'a> NativePdfDocument<'a> {
                 self.set_link_here(link, page);
             }
 
-            self.write_finding_card(&title, result);
+            if self.report.report.is_delta_report() {
+                self.write_delta_finding(&title, result, target);
+            } else {
+                self.write_finding_card(&title, result);
+            }
             self.write_return_to_host_link(target);
 
             self.pdf.ln(Unit::mm(6.0));
+        }
+    }
+
+    fn write_delta_finding(&mut self, title: &str, result: &ReportResult, _target: &str) {
+        let Some(delta) = result.delta.as_ref() else {
+            self.write_finding_card(title, result);
+            return;
+        };
+
+        let Some(state) = delta.state() else {
+            self.write_finding_card(title, result);
+            return;
+        };
+
+        self.write_delta_marker(state);
+        self.pdf.ln(Unit::mm(5.0));
+
+        match state {
+            DeltaState::Same | DeltaState::New | DeltaState::Gone => {
+                self.write_finding_card(title, result);
+            }
+            DeltaState::Changed => {
+                self.write_heading("Result 1", 3);
+                self.write_finding_card(title, result);
+
+                if let Some(previous) = delta.previous_result() {
+                    self.write_heading("Result 2", 3);
+                    self.write_finding_card(title, previous);
+                }
+
+                if let Some(diff) = delta.diff.as_deref().filter(|diff| !diff.trim().is_empty()) {
+                    self.write_heading("Different Lines", 3);
+                    self.write_diff_block(diff);
+                }
+            }
         }
     }
 

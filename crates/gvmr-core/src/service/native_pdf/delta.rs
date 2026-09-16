@@ -25,6 +25,15 @@ pub fn classify_diff_line(line: &str) -> DiffLineKind {
     }
 }
 
+pub(crate) fn diff_line_fill(kind: DiffLineKind) -> RGB {
+    match kind {
+        DiffLineKind::Hunk => RGB::new(238, 232, 248),
+        DiffLineKind::Added => RGB::new(226, 244, 228),
+        DiffLineKind::Removed => RGB::new(252, 230, 230),
+        DiffLineKind::Context => RGB::new(255, 255, 255),
+    }
+}
+
 pub fn delta_marker(state: DeltaState) -> &'static str {
     match state {
         DeltaState::Same => "=",
@@ -174,15 +183,8 @@ impl<'a> NativePdfDocument<'a> {
     }
 
     fn write_diff_line(&mut self, line: &str, kind: DiffLineKind) {
-        let fill = match kind {
-            DiffLineKind::Hunk => RGB::new(238, 232, 248),
-            DiffLineKind::Added => RGB::new(226, 244, 228),
-            DiffLineKind::Removed => RGB::new(252, 230, 230),
-            DiffLineKind::Context => RGB::new(255, 255, 255),
-        };
-
         self.ensure_space(4.0);
-        self.pdf.set_fill_color(fill);
+        self.pdf.set_fill_color(diff_line_fill(kind));
         self.pdf.multi_cell(
             Unit::mm(CONTENT_WIDTH_MM),
             Unit::mm(4.0),

@@ -37,6 +37,26 @@ fn classify_diff_line_maps_diff_prefixes() {
 }
 
 #[test]
+fn diff_line_fill_maps_each_diff_kind() {
+    assert_eq!(
+        diff_line_fill(DiffLineKind::Hunk),
+        fpdf::RGB::new(238, 232, 248)
+    );
+    assert_eq!(
+        diff_line_fill(DiffLineKind::Removed),
+        fpdf::RGB::new(252, 230, 230)
+    );
+    assert_eq!(
+        diff_line_fill(DiffLineKind::Added),
+        fpdf::RGB::new(226, 244, 228)
+    );
+    assert_eq!(
+        diff_line_fill(DiffLineKind::Context),
+        fpdf::RGB::new(255, 255, 255)
+    );
+}
+
+#[test]
 fn write_delta_marker_handles_all_states() {
     let report = test_report();
     let mut document = NativePdfDocument::new(&report);

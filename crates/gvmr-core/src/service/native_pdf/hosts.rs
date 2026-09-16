@@ -433,28 +433,10 @@ impl<'a> NativePdfDocument<'a> {
             return;
         };
 
-        self.write_delta_marker(state);
-        self.pdf.ln(Unit::mm(5.0));
-
-        match state {
-            DeltaState::Same | DeltaState::New | DeltaState::Gone => {
-                self.write_finding_card(title, result);
-            }
-            DeltaState::Changed => {
-                self.write_heading("Result 1", 3);
-                self.write_finding_card(title, result);
-
-                if let Some(previous) = delta.previous_result() {
-                    self.write_heading("Result 2", 3);
-                    self.write_finding_card(title, previous);
-                }
-
-                if let Some(diff) = delta.diff.as_deref().filter(|diff| !diff.trim().is_empty()) {
-                    self.write_heading("Different Lines", 3);
-                    self.write_diff_block(diff);
-                }
-            }
-        }
+        let diff = (state == DeltaState::Changed)
+            .then_some(delta.diff.as_deref())
+            .flatten();
+        self.write_finding_card_with_delta(title, result, Some(state), diff);
     }
 
     pub(crate) fn target_display_name(&self, target: &str, results: &[ReportResult]) -> String {

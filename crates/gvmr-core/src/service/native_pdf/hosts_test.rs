@@ -409,6 +409,49 @@ fn write_results_per_host_writes_container_image_results() {
 }
 
 #[test]
+fn changed_delta_renders_single_outer_finding_card() {
+    let report = changed_delta_report(
+        Some("Previous finding"),
+        Some("@@ -1 +1 @@\n-old line\n+new line"),
+    );
+    let result = &report
+        .report
+        .results
+        .as_ref()
+        .expect("report should contain results")
+        .result[0];
+
+    let mut single = NativePdfDocument::new(&report);
+    single.pdf.add_page();
+    let single_start = single.pdf.get_y().to_mm();
+    single.write_finding_card("Delta finding", result);
+    let single_end = single.pdf.get_y().to_mm();
+
+    let mut delta = NativePdfDocument::new(&report);
+    delta.pdf.add_page();
+    let delta_start = delta.pdf.get_y().to_mm();
+    delta.write_delta_finding("Delta finding", result, "192.0.2.10");
+    let delta_end = delta.pdf.get_y().to_mm();
+
+    println!(
+        "single_start={single_start} single_end={single_end} delta_start={delta_start} delta_end={delta_end} ratio={}",
+        delta_end / single_end
+    );
+    assert!(
+        delta_end > delta_start,
+        "changed delta should advance the document layout"
+    );
+    assert!(
+        delta_end < single_end * 2.4,
+        "changed delta should not duplicate a full second finding card"
+    );
+    assert!(
+        delta_end > single_end,
+        "changed delta should include the comparison context beyond the base card"
+    );
+}
+
+#[test]
 fn write_target_metadata_writes_host_metadata() {
     let report = host_report();
     let mut document = NativePdfDocument::new(&report);

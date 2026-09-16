@@ -113,6 +113,85 @@ fn summary_text_contains_task_timezone_scan_times_and_target_name() {
 }
 
 #[test]
+fn delta_summary_text_uses_baseline_as_first_scan_and_current_as_second() {
+    let report = parse_report(
+        r#"
+        <report>
+            <report id="current-report" type="delta">
+                <timezone>GMT</timezone>
+                <timezone_abbrev>UTC</timezone_abbrev>
+                <scan_start>2026-09-08T10:00:00Z</scan_start>
+                <scan_end>2026-09-08T11:00:00Z</scan_end>
+                <task><name>agent-task-1</name><agent_group><name>Agents</name></agent_group></task>
+                <delta>
+                    <report id="baseline-report">
+                        <scan_start>2026-09-07T08:00:00Z</scan_start>
+                        <scan_end>2026-09-07T09:00:00Z</scan_end>
+                    </report>
+                </delta>
+            </report>
+        </report>
+        "#,
+    );
+
+    let summary = delta_summary_text(&report.report, ReportTargetKind::Agent);
+
+    assert!(summary.contains("The task was \"agent-task-1\"."));
+    assert!(summary.contains(
+        "The first scan started at Mon Sep 7 08:00:00 2026 UTC and ended at Mon Sep 7 09:00:00 2026 UTC."
+    ));
+    assert!(summary.contains(
+        "The second scan started at Tue Sep 8 10:00:00 2026 UTC and ended at Tue Sep 8 11:00:00 2026 UTC."
+    ));
+    assert!(summary.contains("summarises the agents found"));
+    assert!(summary.contains("for each agent"));
+    assert!(!summary.contains("automatic security scan"));
+}
+
+#[test]
+fn delta_summary_text_omits_missing_timing_values() {
+    let report = parse_report(
+        r#"
+        <report>
+            <report id="current-report" type="delta">
+                <scan_start>2026-09-08T10:00:00Z</scan_start>
+                <delta>
+                    <report id="baseline-report">
+                        <scan_end>2026-09-07T09:00:00Z</scan_end>
+                    </report>
+                </delta>
+            </report>
+        </report>
+        "#,
+    );
+
+    let summary = delta_summary_text(&report.report, ReportTargetKind::Host);
+
+    assert!(summary.contains("The first scan ended at Mon Sep 7 09:00:00 2026 UTC."));
+    assert!(summary.contains("The second scan started at Tue Sep 8 10:00:00 2026 UTC."));
+    assert!(!summary.contains("started at  "));
+    assert!(!summary.contains("ended at  "));
+}
+
+#[test]
+fn delta_summary_text_omits_scan_sentences_when_timestamps_are_missing() {
+    let report = parse_report(
+        r#"
+        <report>
+            <report id="current-report" type="delta">
+                <delta><report id="baseline-report" /></delta>
+            </report>
+        </report>
+        "#,
+    );
+
+    let summary = delta_summary_text(&report.report, ReportTargetKind::Host);
+
+    assert!(!summary.contains("The first scan"));
+    assert!(!summary.contains("The second scan"));
+}
+
+#[test]
 fn report_view_summary_text_uses_detected_target() {
     let report = report_with_results("");
 

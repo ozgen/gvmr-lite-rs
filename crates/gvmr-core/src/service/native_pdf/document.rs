@@ -114,7 +114,6 @@ impl<'a> NativePdfDocument<'a> {
 
     pub(crate) fn render(&mut self) -> Result<Vec<u8>, NativePdfRenderError> {
         self.write_cover();
-        self.write_delta_report_metadata_after_contents();
         self.write_result_overview();
         self.write_results_per_host();
 

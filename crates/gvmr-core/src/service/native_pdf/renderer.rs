@@ -21,7 +21,6 @@ impl NativePdfRenderer {
         let mut pass1 = NativePdfDocument::new(report);
         pass1.prepare_toc(None);
         pass1.write_cover();
-        pass1.write_delta_report_metadata_after_contents();
         pass1.write_result_overview();
         pass1.write_results_per_host();
 

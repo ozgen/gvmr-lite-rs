@@ -2,9 +2,16 @@ use std::collections::BTreeMap;
 
 use fpdf::{Pdf, RGB, Unit};
 
-use crate::{service::pdf_renderer_helper::clean_text, service::report_view::grouped_threats};
+use crate::{
+    service::pdf_renderer_helper::clean_text,
+    service::report_view::{grouped_threats, result_port},
+};
 
-use super::{document::NativePdfDocument, grouping::FindingKey};
+use super::{
+    compliance::{compliance_display_upper, sort_compliance_results},
+    document::NativePdfDocument,
+    grouping::FindingKey,
+};
 
 #[derive(Debug, Clone)]
 pub(crate) struct TocEntry {
@@ -22,9 +29,14 @@ impl<'a> NativePdfDocument<'a> {
         self.finding_links.clear();
 
         let overview_link = self.pdf.add_link();
-        self.add_toc_entry("1", "Result Overview", 1, overview_link, known_pages);
+        let overview_title = if self.compliance_mode {
+            "Compliance Overview"
+        } else {
+            "Result Overview"
+        };
+        self.add_toc_entry("1", overview_title, 1, overview_link, known_pages);
 
-        if self.has_authentication_rows() {
+        if !self.compliance_mode && self.has_authentication_rows() {
             let auth_link = self.pdf.add_link();
 
             self.add_toc_entry("1.1", "Host Authentications", 2, auth_link, known_pages);
@@ -32,13 +44,12 @@ impl<'a> NativePdfDocument<'a> {
 
         let results_link = self.pdf.add_link();
 
-        self.add_toc_entry(
-            "2",
-            self.target.results_section_title(),
-            1,
-            results_link,
-            known_pages,
-        );
+        let results_title = if self.compliance_mode {
+            "Results per Host"
+        } else {
+            self.target.results_section_title()
+        };
+        self.add_toc_entry("2", results_title, 1, results_link, known_pages);
 
         let grouped = self.group_results_by_target();
 
@@ -50,9 +61,15 @@ impl<'a> NativePdfDocument<'a> {
 
             let display_host = self.target_display_name(host, results);
 
+            let presentation_results = if self.compliance_mode {
+                sort_compliance_results(results)
+            } else {
+                results.clone()
+            };
+
             self.add_toc_entry(&host_number, &display_host, 2, host_link, known_pages);
 
-            if self.target.is_grouped_by_threat() {
+            if !self.compliance_mode && self.target.is_grouped_by_threat() {
                 for (threat_index, threat) in grouped_threats(results).iter().enumerate() {
                     let finding_number = format!("{host_number}.{}", threat_index + 1);
 
@@ -68,7 +85,7 @@ impl<'a> NativePdfDocument<'a> {
                     self.add_toc_entry(&finding_number, threat, 3, finding_link, known_pages);
                 }
             } else {
-                for (result_index, result) in results.iter().enumerate() {
+                for (result_index, result) in presentation_results.iter().enumerate() {
                     let finding_number = format!("{host_number}.{}", result_index + 1);
 
                     let finding_link = self.pdf.add_link();
@@ -80,7 +97,15 @@ impl<'a> NativePdfDocument<'a> {
 
                     self.finding_links.insert(key, finding_link);
 
-                    let title = self.target.finding_title(result);
+                    let title = if self.compliance_mode {
+                        format!(
+                            "{} {}",
+                            compliance_display_upper(result),
+                            result_port(result)
+                        )
+                    } else {
+                        self.target.finding_title(result)
+                    };
 
                     self.add_toc_entry(&finding_number, &title, 3, finding_link, known_pages);
                 }

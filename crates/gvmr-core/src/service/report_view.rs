@@ -130,6 +130,10 @@ impl<'a> ReportView<'a> {
         summary_text(self.report, self.target_kind)
     }
 
+    pub fn delta_summary_text(&self) -> String {
+        delta_summary_text(self.report, self.target_kind)
+    }
+
     pub fn filter_summary_text(&self) -> String {
         build_filter_summary_text(self.report, self.target_kind)
     }
@@ -229,6 +233,77 @@ Please consider the advice given in each description, in order to rectify the is
         task_name(report),
         target_kind.singular_name()
     )
+}
+
+pub fn delta_summary_text(report: &InnerReport, target_kind: ReportTargetKind) -> String {
+    let timezone = report
+        .timezone
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("GMT");
+
+    let timezone_abbrev = report
+        .timezone_abbrev
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("UTC");
+
+    let baseline = report
+        .delta
+        .as_ref()
+        .and_then(|delta| delta.report.as_ref());
+    let mut scan_sentences = Vec::new();
+
+    if let Some(sentence) = scan_timing_sentence(
+        "first scan",
+        baseline.and_then(|report| report.scan_start.as_deref()),
+        baseline.and_then(|report| report.scan_end.as_deref()),
+    ) {
+        scan_sentences.push(sentence);
+    }
+
+    if let Some(sentence) = scan_timing_sentence(
+        "second scan",
+        report.scan_start.as_deref(),
+        report.scan_end.as_deref(),
+    ) {
+        scan_sentences.push(sentence);
+    }
+
+    let timing = if scan_sentences.is_empty() {
+        String::new()
+    } else {
+        format!("{} ", scan_sentences.join(" "))
+    };
+
+    format!(
+        "This document compares the results of two security scans. All dates are displayed using the timezone \"{timezone}\", which is abbreviated \"{timezone_abbrev}\". The task was \"{}\". {timing}The report first summarises the {} found. Then, for each {}, the report describes the changes that occurred between the two scans.",
+        task_name(report),
+        target_kind.plural_name(),
+        target_kind.singular_name()
+    )
+}
+
+fn scan_timing_sentence(label: &str, start: Option<&str>, end: Option<&str>) -> Option<String> {
+    let start = start
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(format_summary_datetime);
+    let end = end
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(format_summary_datetime);
+
+    match (start, end) {
+        (Some(start), Some(end)) => Some(format!(
+            "The {label} started at {start} and ended at {end}."
+        )),
+        (Some(start), None) => Some(format!("The {label} started at {start}.")),
+        (None, Some(end)) => Some(format!("The {label} ended at {end}.")),
+        (None, None) => None,
+    }
 }
 
 pub fn all_results(report: &InnerReport) -> Vec<&ReportResult> {

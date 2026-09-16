@@ -33,7 +33,10 @@ use crate::{
 use gvmr_core::{
     domain::{
         report_format::{ReportFormat, ReportFormatFile},
-        report_format_constants::{BUILT_IN_NATIVE_PDF_TECHNICAL_ID, BUILT_IN_TYPST_TECHNICAL_ID},
+        report_format_constants::{
+            BUILT_IN_NATIVE_PDF_COMPLIANCE_ID, BUILT_IN_NATIVE_PDF_TECHNICAL_ID,
+            BUILT_IN_TYPST_TECHNICAL_ID,
+        },
     },
     infra::fs::make_executable_best_effort,
     service::{
@@ -161,6 +164,9 @@ fn audit_render_request(format_id: &str) -> RenderAuditRequest {
         "format_id": format_id,
         "report_json": {
             "report": {
+                "@attrs": {
+                    "id": "audit-report"
+                },
                 "scan_run_status": "Done"
             }
         },
@@ -234,6 +240,18 @@ fn native_pdf_audit_format() -> ReportFormat {
     )
 }
 
+fn native_pdf_compliance_audit_format() -> ReportFormat {
+    let workdir = temp_test_dir("audit-native-pdf-compliance-format");
+
+    ReportFormat::built_in_native_pdf(
+        BUILT_IN_NATIVE_PDF_COMPLIANCE_ID,
+        "Native PDF Compliance Report",
+        "pdf",
+        "application/pdf",
+        workdir,
+    )
+}
+
 async fn response_body_string(response: axum::response::Response) -> String {
     let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
 
@@ -258,6 +276,10 @@ fn temp_test_dir(name: &str) -> PathBuf {
 
 fn valid_audit_report_xml() -> &'static str {
     r#"<report id="outer-report"><report id="inner-report"><scan_run_status>Done</scan_run_status><results></results></report></report>"#
+}
+
+fn valid_audit_delta_report_xml() -> &'static str {
+    r#"<report id="outer-report"><report id="inner-report" type="delta"><delta><report id="baseline-report"><scan_run_status>Done</scan_run_status></report></delta><compliance_count><filtered>1</filtered><yes><filtered>1</filtered></yes></compliance_count><results><result id="result-1"><host>192.0.2.10</host><name>Audit check</name><compliance>yes</compliance><delta>same</delta></result></results></report></report>"#
 }
 
 fn audit_xml_request(format_id: &str) -> RenderAuditXmlRequest {
@@ -585,6 +607,71 @@ async fn render_audit_returns_unprocessable_entity_for_native_pdf_backend() {
     let body = response_body_string(response).await;
 
     assert!(body.contains("unsupported_audit_renderer_backend"));
+}
+
+#[tokio::test]
+async fn render_audit_native_compliance_returns_pdf_response() {
+    let renderer = Arc::new(FakeRenderer::new());
+    let state = test_state(
+        AuthMode::Jwt,
+        "render",
+        vec![native_pdf_compliance_audit_format()],
+        renderer,
+    );
+
+    let response = render_audit(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(audit_render_request(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID)),
+    )
+    .await
+    .expect("native compliance audit render should succeed");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers().get(CONTENT_TYPE).unwrap(),
+        "application/pdf"
+    );
+    assert!(
+        !to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[tokio::test]
+async fn render_audit_xml_native_compliance_supports_delta_reports() {
+    let renderer = Arc::new(FakeRenderer::new());
+    let state = test_state(
+        AuthMode::Jwt,
+        "render",
+        vec![native_pdf_compliance_audit_format()],
+        renderer,
+    );
+
+    let mut request = audit_xml_request(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID);
+    request.report_xml = valid_audit_delta_report_xml().to_string();
+
+    let response = render_audit_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(request),
+    )
+    .await
+    .expect("native compliance delta render should succeed");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers().get(CONTENT_TYPE).unwrap(),
+        "application/pdf"
+    );
+    assert!(
+        !to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap()
+            .is_empty()
+    );
 }
 
 #[tokio::test]

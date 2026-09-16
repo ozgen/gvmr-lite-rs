@@ -907,6 +907,140 @@ fn report_result_target_address_returns_none_when_host_is_missing() {
 }
 
 #[test]
+fn compliance_status_parses_known_values_case_insensitively() {
+    assert_eq!(ComplianceStatus::parse("yes"), Some(ComplianceStatus::Yes));
+    assert_eq!(ComplianceStatus::parse("NO"), Some(ComplianceStatus::No));
+    assert_eq!(
+        ComplianceStatus::parse(" incomplete "),
+        Some(ComplianceStatus::Incomplete)
+    );
+    assert_eq!(
+        ComplianceStatus::parse("undefined"),
+        Some(ComplianceStatus::Undefined)
+    );
+    assert_eq!(ComplianceStatus::parse("unknown"), None);
+}
+
+#[test]
+fn report_result_compliance_status_preserves_raw_value() {
+    let result = ReportResult {
+        compliance: Some(" YES ".to_string()),
+        ..ReportResult::default()
+    };
+
+    assert_eq!(result.compliance.as_deref(), Some(" YES "));
+    assert_eq!(result.compliance_status(), Some(ComplianceStatus::Yes));
+}
+
+#[test]
+fn report_result_compliance_details_parses_all_fields() {
+    let result = ReportResult {
+        description: Some(
+            "Compliant:    NO\nActual Value: None\nSet Point:    permitrootlogin no\nType of Test: sshd_config\nTest:         Check SSH root login\nSolution:     Set PermitRootLogin to no.\nNotes:        First line\n              Second line"
+                .to_string(),
+        ),
+        ..ReportResult::default()
+    };
+
+    assert_eq!(
+        result.compliance_details(),
+        Some(ComplianceDetails {
+            compliant: Some(ComplianceStatus::No),
+            actual_value: Some("None".to_string()),
+            set_point: Some("permitrootlogin no".to_string()),
+            test_type: Some("sshd_config".to_string()),
+            test: Some("Check SSH root login".to_string()),
+            solution: Some("Set PermitRootLogin to no.".to_string()),
+            notes: Some("First line\n              Second line".to_string()),
+        })
+    );
+}
+
+#[test]
+fn report_result_compliance_details_allows_missing_labels() {
+    let result = ReportResult {
+        description: Some("Compliant: yes\nTest: Example check".to_string()),
+        ..ReportResult::default()
+    };
+
+    let details = result
+        .compliance_details()
+        .expect("recognized labels should produce details");
+
+    assert_eq!(details.compliant, Some(ComplianceStatus::Yes));
+    assert_eq!(details.test.as_deref(), Some("Example check"));
+    assert_eq!(details.actual_value, None);
+    assert_eq!(details.notes, None);
+}
+
+#[test]
+fn report_result_compliance_details_preserves_multiline_notes() {
+    let result = ReportResult {
+        description: Some("Notes: First line\n  Second line\n\nActual Value: value".to_string()),
+        ..ReportResult::default()
+    };
+
+    let details = result.compliance_details().expect("notes should be parsed");
+
+    assert_eq!(details.notes.as_deref(), Some("First line\n  Second line"));
+}
+
+#[test]
+fn report_result_compliance_details_preserves_multiline_solution() {
+    let result = ReportResult {
+        description: Some("Solution: First line\n  Second line\nNotes: follow-up".to_string()),
+        ..ReportResult::default()
+    };
+
+    let details = result
+        .compliance_details()
+        .expect("solution should be parsed");
+
+    assert_eq!(
+        details.solution.as_deref(),
+        Some("First line\n  Second line")
+    );
+}
+
+#[test]
+fn report_result_compliance_details_keeps_unknown_compliance_value_untyped() {
+    let result = ReportResult {
+        description: Some("Compliant: maybe\nActual Value: value".to_string()),
+        ..ReportResult::default()
+    };
+
+    let details = result
+        .compliance_details()
+        .expect("recognized labels should produce details");
+
+    assert_eq!(details.compliant, None);
+    assert_eq!(details.actual_value.as_deref(), Some("value"));
+}
+
+#[test]
+fn report_result_compliance_details_returns_none_for_ordinary_description() {
+    let result = ReportResult {
+        description: Some("This is an ordinary finding description.".to_string()),
+        ..ReportResult::default()
+    };
+
+    assert_eq!(result.compliance_details(), None);
+}
+
+#[test]
+fn report_result_compliance_details_does_not_change_description() {
+    let description = "Compliant: NO\nActual Value: None";
+    let result = ReportResult {
+        description: Some(description.to_string()),
+        ..ReportResult::default()
+    };
+
+    let _ = result.compliance_details();
+
+    assert_eq!(result.description.as_deref(), Some(description));
+}
+
+#[test]
 fn report_result_target_display_name_uses_oci_image_short_name() {
     let xml = r#"
         <report id="outer-report-id">

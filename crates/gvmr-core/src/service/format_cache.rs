@@ -10,8 +10,8 @@ use crate::{
     domain::{
         report_format::{ReportFormat, ReportFormatFile},
         report_format_constants::{
-            BUILT_IN_NATIVE_PDF_TECHNICAL_ID, BUILT_IN_TYPST_TECHNICAL_ID,
-            DISCARDED_REPORT_FORMAT_IDS,
+            BUILT_IN_NATIVE_PDF_COMPLIANCE_ID, BUILT_IN_NATIVE_PDF_TECHNICAL_ID,
+            BUILT_IN_TYPST_TECHNICAL_ID, DISCARDED_REPORT_FORMAT_IDS,
         },
     },
     infra::fs::{
@@ -197,6 +197,22 @@ impl FormatCache {
 
         self.formats
             .insert(native_pdf_format.id.clone(), native_pdf_format);
+
+        let native_compliance_workdir = self.work_dir.join(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID);
+        ensure_dir(&native_compliance_workdir)?;
+
+        let native_compliance_format = ReportFormat::built_in_native_pdf(
+            BUILT_IN_NATIVE_PDF_COMPLIANCE_ID,
+            "Native PDF Compliance Report",
+            "pdf",
+            "application/pdf",
+            native_compliance_workdir,
+        );
+
+        self.audit_formats.insert(
+            native_compliance_format.id.clone(),
+            native_compliance_format,
+        );
 
         Ok(())
     }

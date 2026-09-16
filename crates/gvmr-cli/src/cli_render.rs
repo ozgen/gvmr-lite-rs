@@ -5,6 +5,9 @@ use tracing::info;
 use crate::{cli::CliRendererType, error::CliError};
 
 use gvmr_core::{
+    domain::report_format_constants::{
+        BUILT_IN_NATIVE_PDF_COMPLIANCE_ID, BUILT_IN_NATIVE_PDF_TECHNICAL_ID,
+    },
     service::{native_pdf::NativePdfRenderer, typst::renderer::TypstReportRenderer},
     xml::report_validator::parse_report_xml_flexible,
 };
@@ -25,13 +28,9 @@ pub fn render_xml_file(
     })?;
 
     let pdf = match renderer_type {
-        CliRendererType::Native => {
-            let renderer = NativePdfRenderer::new();
-
-            renderer.render(&report).map_err(|err| CliError::Render {
-                renderer: "native PDF",
-                message: err.to_string(),
-            })?
+        CliRendererType::Native => render_native_pdf(BUILT_IN_NATIVE_PDF_TECHNICAL_ID, &report)?,
+        CliRendererType::NativeCompliance => {
+            render_native_pdf(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID, &report)?
         }
 
         CliRendererType::Typst => {
@@ -58,6 +57,29 @@ pub fn render_xml_file(
     );
 
     Ok(())
+}
+
+fn render_native_pdf(
+    format_id: &str,
+    report: &gvmr_core::domain::report_model::ReportEnvelope,
+) -> Result<Vec<u8>, CliError> {
+    match format_id {
+        BUILT_IN_NATIVE_PDF_TECHNICAL_ID | BUILT_IN_NATIVE_PDF_COMPLIANCE_ID => {
+            let pdf = if format_id == BUILT_IN_NATIVE_PDF_COMPLIANCE_ID {
+                NativePdfRenderer::new().render_compliance(report)
+            } else {
+                NativePdfRenderer::new().render_technical(report)
+            };
+
+            pdf.map_err(|err| CliError::Render {
+                renderer: "native PDF",
+                message: err.to_string(),
+            })
+        }
+        _ => Err(CliError::Validation(format!(
+            "unsupported native PDF format: {format_id}"
+        ))),
+    }
 }
 
 #[cfg(test)]

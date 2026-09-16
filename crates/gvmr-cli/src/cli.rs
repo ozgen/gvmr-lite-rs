@@ -24,6 +24,7 @@ pub struct Cli {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum CliRendererType {
     Native,
+    NativeCompliance,
     Typst,
 }
 
@@ -37,7 +38,7 @@ impl Cli {
 
         if self.renderer_type.is_none() {
             return Err(CliError::Validation(
-                "missing --type <native|typst>".to_string(),
+                "missing --type <native|native-compliance|typst>".to_string(),
             ));
         }
 

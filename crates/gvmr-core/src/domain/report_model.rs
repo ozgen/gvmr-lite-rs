@@ -57,7 +57,11 @@ pub struct InnerReport {
     #[serde(rename = "@id")]
     pub id: Option<String>,
 
+    #[serde(rename = "@type")]
+    pub report_type: Option<String>,
+
     pub gmp: Option<Gmp>,
+    pub delta: Option<ReportDelta>,
     pub sort: Option<Sort>,
     pub filters: Option<Filters>,
     pub scan_run_status: Option<String>,
@@ -80,6 +84,8 @@ pub struct InnerReport {
     pub ports: Option<Ports>,
     pub results: Option<Results>,
     pub result_count: Option<ResultCount>,
+    pub compliance_count: Option<ComplianceCount>,
+    pub compliance: Option<ComplianceSummary>,
     pub severity: Option<SeveritySummary>,
 
     #[serde(rename = "host", default)]
@@ -103,6 +109,14 @@ impl InnerReport {
             .as_ref()
             .and_then(|task| task.agent_group.as_ref())
             .is_some()
+    }
+
+    pub fn is_delta_report(&self) -> bool {
+        self.report_type
+            .as_deref()
+            .map(str::trim)
+            .is_some_and(|value| value.eq_ignore_ascii_case("delta"))
+            || self.delta.is_some()
     }
 
     pub fn auth_rows(&self) -> Vec<AuthRow> {
@@ -350,6 +364,37 @@ pub struct Results {
     pub result: Vec<ReportResult>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ComplianceStatus {
+    Yes,
+    No,
+    Incomplete,
+    Undefined,
+}
+
+impl ComplianceStatus {
+    pub fn parse(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "yes" => Some(Self::Yes),
+            "no" => Some(Self::No),
+            "incomplete" => Some(Self::Incomplete),
+            "undefined" => Some(Self::Undefined),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ComplianceDetails {
+    pub compliant: Option<ComplianceStatus>,
+    pub actual_value: Option<String>,
+    pub set_point: Option<String>,
+    pub test_type: Option<String>,
+    pub test: Option<String>,
+    pub solution: Option<String>,
+    pub notes: Option<String>,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
 pub struct ReportResult {
     #[serde(rename = "@id")]
@@ -377,9 +422,19 @@ pub struct ReportResult {
     pub original_threat: Option<String>,
     pub original_severity: Option<String>,
     pub compliance: Option<String>,
+    pub delta: Option<ResultDelta>,
 }
 
 impl ReportResult {
+    pub fn compliance_status(&self) -> Option<ComplianceStatus> {
+        self.compliance.as_deref().and_then(ComplianceStatus::parse)
+    }
+
+    pub fn compliance_details(&self) -> Option<ComplianceDetails> {
+        let description = self.description.as_deref()?;
+        parse_compliance_details(description)
+    }
+
     pub fn target_address(&self) -> Option<&str> {
         self.host.as_ref().and_then(ResultHost::address)
     }
@@ -401,6 +456,56 @@ impl ReportResult {
             .and_then(OciImage::digest)
             .or_else(|| self.target_address())
     }
+}
+
+fn parse_compliance_details(description: &str) -> Option<ComplianceDetails> {
+    let labels = [
+        "Compliant:",
+        "Actual Value:",
+        "Set Point:",
+        "Type of Test:",
+        "Test:",
+        "Solution:",
+        "Notes:",
+    ];
+    let mut values: [Option<String>; 7] = Default::default();
+    let mut current_label = None;
+    let mut found_label = false;
+
+    for line in description.lines() {
+        let trimmed_line = line.trim_start();
+        if let Some((index, value)) = labels
+            .iter()
+            .enumerate()
+            .find_map(|(index, label)| trimmed_line.strip_prefix(label).map(|value| (index, value)))
+        {
+            values[index] = Some(value.trim().to_string());
+            current_label = Some(index);
+            found_label = true;
+        } else if let Some(index) = current_label {
+            let value = values[index].get_or_insert_with(String::new);
+            value.push('\n');
+            value.push_str(line);
+        }
+    }
+
+    if !found_label {
+        return None;
+    }
+
+    let trim_value = |value: Option<String>| value.map(|value| value.trim().to_string());
+    let mut values = values.into_iter();
+
+    Some(ComplianceDetails {
+        compliant: trim_value(values.next().unwrap())
+            .and_then(|value| ComplianceStatus::parse(&value)),
+        actual_value: trim_value(values.next().unwrap()),
+        set_point: trim_value(values.next().unwrap()),
+        test_type: trim_value(values.next().unwrap()),
+        test: trim_value(values.next().unwrap()),
+        solution: trim_value(values.next().unwrap()),
+        notes: trim_value(values.next().unwrap()),
+    })
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
@@ -546,6 +651,20 @@ pub struct ResultCount {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
+pub struct ComplianceCount {
+    #[serde(rename = "$text")]
+    pub text: Option<String>,
+
+    pub full: Option<String>,
+    pub filtered: Option<String>,
+
+    pub yes: Option<FullFiltered>,
+    pub no: Option<FullFiltered>,
+    pub incomplete: Option<FullFiltered>,
+    pub undefined: Option<FullFiltered>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
 pub struct FullFiltered {
     #[serde(rename = "@deprecated")]
     pub deprecated: Option<String>,
@@ -561,6 +680,12 @@ pub struct SeveritySummary {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
+pub struct ComplianceSummary {
+    pub full: Option<String>,
+    pub filtered: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
 pub struct ReportHost {
     pub ip: Option<String>,
     pub asset: Option<AssetRef>,
@@ -568,6 +693,8 @@ pub struct ReportHost {
     pub end: Option<String>,
     pub port_count: Option<PageCountNode>,
     pub result_count: Option<HostResultCount>,
+    pub compliance_count: Option<HostComplianceCount>,
+    pub host_compliance: Option<String>,
 
     #[serde(rename = "detail", default)]
     pub detail: Vec<HostDetail>,
@@ -619,6 +746,22 @@ impl ReportHost {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
+pub struct ReportDelta {
+    pub report: Option<DeltaBaselineReport>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
+pub struct DeltaBaselineReport {
+    #[serde(rename = "@id")]
+    pub id: Option<String>,
+
+    pub scan_run_status: Option<String>,
+    pub timestamp: Option<String>,
+    pub scan_start: Option<String>,
+    pub scan_end: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
 pub struct PageCountNode {
     pub page: Option<String>,
 }
@@ -636,6 +779,16 @@ pub struct HostResultCount {
     pub low: Option<PageCountNode>,
     pub log: Option<PageCountNode>,
     pub false_positive: Option<PageCountNode>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
+pub struct HostComplianceCount {
+    pub page: Option<String>,
+
+    pub yes: Option<PageCountNode>,
+    pub no: Option<PageCountNode>,
+    pub incomplete: Option<PageCountNode>,
+    pub undefined: Option<PageCountNode>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
@@ -659,6 +812,46 @@ pub struct HostDetailSource {
     pub r#type: Option<String>,
     pub name: Option<String>,
     pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeltaState {
+    Changed,
+    Gone,
+    New,
+    Same,
+}
+
+impl DeltaState {
+    pub fn parse(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "changed" => Some(Self::Changed),
+            "gone" => Some(Self::Gone),
+            "new" => Some(Self::New),
+            "same" => Some(Self::Same),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
+pub struct ResultDelta {
+    #[serde(rename = "$text")]
+    pub state_text: Option<String>,
+
+    pub result: Option<Box<ReportResult>>,
+
+    pub diff: Option<String>,
+}
+
+impl ResultDelta {
+    pub fn state(&self) -> Option<DeltaState> {
+        self.state_text.as_deref().and_then(DeltaState::parse)
+    }
+
+    pub fn previous_result(&self) -> Option<&ReportResult> {
+        self.result.as_deref()
+    }
 }
 
 #[cfg(test)]

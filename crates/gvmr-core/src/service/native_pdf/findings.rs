@@ -11,11 +11,22 @@ use crate::{
 
 use super::{
     constants::{A4_HEIGHT_MM, BOTTOM_MARGIN_MM, CONTENT_WIDTH_MM, MAX_FIELD_CHARS},
+    delta::{classify_diff_line, delta_marker, diff_line_fill},
     document::NativePdfDocument,
 };
 
 impl<'a> NativePdfDocument<'a> {
     pub(crate) fn write_finding_card(&mut self, title: &str, result: &ReportResult) {
+        self.write_finding_card_with_delta(title, result, None, None);
+    }
+
+    pub(crate) fn write_finding_card_with_delta(
+        &mut self,
+        title: &str,
+        result: &ReportResult,
+        state: Option<crate::domain::report_model::DeltaState>,
+        diff: Option<&str>,
+    ) {
         self.ensure_space(45.0);
 
         let (red, green, blue) = severity_color(result_threat(result));
@@ -24,14 +35,14 @@ impl<'a> NativePdfDocument<'a> {
         self.pdf.set_text_color(RGB::new(255, 255, 255));
         self.pdf.set_font("Helvetica", "B", Unit::pt(9.0));
 
+        let header_title = state
+            .map(|state| format!("{} {}", delta_marker(state), clean_text(title)))
+            .unwrap_or_else(|| clean_text(title));
+
         let header = if result_severity(result).is_empty() {
-            clean_text(title)
+            header_title
         } else {
-            format!(
-                "{}    (CVSS: {})",
-                clean_text(title),
-                result_severity(result)
-            )
+            format!("{}    (CVSS: {})", header_title, result_severity(result))
         };
 
         self.pdf.cell_format(
@@ -80,6 +91,10 @@ impl<'a> NativePdfDocument<'a> {
         self.write_box_field("Vulnerability Insight", result_insight(result));
         self.write_box_field("Vulnerability Detection Method", detection_method(result));
 
+        if let Some(diff) = diff.filter(|diff| !diff.trim().is_empty()) {
+            self.write_diff_box_field(diff);
+        }
+
         let refs = result_references(result);
         if !refs.is_empty() {
             self.write_box_field("References", Some(refs.join("\n")));
@@ -98,6 +113,102 @@ impl<'a> NativePdfDocument<'a> {
         }
 
         self.write_paginated_box_field(title, &value);
+    }
+
+    fn write_diff_box_field(&mut self, value: &str) {
+        let title_h = 5.0;
+        let line_h = 4.5;
+        let top_pad = 1.5;
+        let left_pad = 2.0;
+        let bottom_pad = 2.0;
+        let chars_per_line = 95;
+        let lines = diff_box_field_lines(value, chars_per_line);
+
+        if lines.is_empty() {
+            return;
+        }
+
+        let mut line_index = 0usize;
+        let mut continued = false;
+
+        while line_index < lines.len() {
+            self.ensure_space(title_h + line_h + top_pad + bottom_pad + 2.0);
+
+            let (x, y) = self.pdf.get_xy();
+            let available_h = A4_HEIGHT_MM - BOTTOM_MARGIN_MM - y.to_mm();
+            let header_h = title_h + top_pad;
+            let usable_for_lines = available_h - header_h - bottom_pad;
+
+            if usable_for_lines < line_h {
+                self.pdf.add_page();
+                continue;
+            }
+
+            let max_lines_on_page = (usable_for_lines / line_h).floor().max(1.0) as usize;
+            let remaining_lines = lines.len() - line_index;
+            let lines_on_page = remaining_lines.min(max_lines_on_page);
+            let segment_h = header_h + (lines_on_page as f64 * line_h) + bottom_pad;
+
+            self.pdf
+                .rect(x, y, Unit::mm(CONTENT_WIDTH_MM), Unit::mm(segment_h), "D");
+
+            self.pdf
+                .set_xy(x + Unit::mm(left_pad), y + Unit::mm(top_pad));
+            self.pdf.set_fill_color(RGB::new(255, 255, 255));
+            self.pdf.set_text_color(RGB::new(0, 0, 0));
+            self.pdf.set_font("Helvetica", "B", Unit::pt(8.5));
+
+            let title_text = if continued {
+                "Different Lines (continued)"
+            } else {
+                "Different Lines"
+            };
+
+            self.pdf.cell_format(
+                Unit::mm(CONTENT_WIDTH_MM - (left_pad * 2.0)),
+                Unit::mm(title_h),
+                title_text,
+                "",
+                1,
+                "L",
+                false,
+                0,
+                "",
+            );
+
+            self.pdf.set_font("Courier", "", Unit::pt(7.5));
+            let mut current_y = y + Unit::mm(header_h);
+
+            for line in &lines[line_index..line_index + lines_on_page] {
+                self.pdf.set_xy(x + Unit::mm(left_pad), current_y);
+                self.pdf.set_fill_color(diff_line_fill(line.kind));
+                self.pdf.set_text_color(RGB::new(0, 0, 0));
+                self.pdf.cell_format(
+                    Unit::mm(CONTENT_WIDTH_MM - (left_pad * 2.0)),
+                    Unit::mm(line_h),
+                    &line.text,
+                    "",
+                    1,
+                    "L",
+                    true,
+                    0,
+                    "",
+                );
+                current_y += Unit::mm(line_h);
+            }
+
+            self.pdf.set_xy(x, y + Unit::mm(segment_h));
+            line_index += lines_on_page;
+            continued = true;
+
+            if line_index < lines.len() {
+                self.pdf.add_page();
+            }
+        }
+
+        self.pdf.set_fill_color(RGB::new(255, 255, 255));
+        self.pdf.set_text_color(RGB::new(0, 0, 0));
+        self.pdf.set_font("Helvetica", "", Unit::pt(8.5));
     }
 
     fn write_paginated_box_field(&mut self, title: &str, value: &str) {
@@ -316,6 +427,49 @@ fn reference_url(value: &str) -> Option<&str> {
 enum BoxFieldLine {
     Text(String),
     Url { text: String, target: String },
+}
+
+struct DiffBoxLine {
+    text: String,
+    kind: crate::service::native_pdf::delta::DiffLineKind,
+}
+
+fn diff_box_field_lines(value: &str, max_chars: usize) -> Vec<DiffBoxLine> {
+    value
+        .split('\n')
+        .flat_map(|line| {
+            let kind = classify_diff_line(line);
+            let chunks = split_diff_line(line, max_chars);
+
+            chunks
+                .into_iter()
+                .map(move |text| DiffBoxLine { text, kind })
+        })
+        .collect()
+}
+
+fn split_diff_line(line: &str, max_chars: usize) -> Vec<String> {
+    if line.is_empty() {
+        return vec![String::new()];
+    }
+
+    let mut chunks = Vec::new();
+    let mut current = String::new();
+
+    for character in line.chars() {
+        if current.chars().count() >= max_chars {
+            chunks.push(current);
+            current = String::new();
+        }
+
+        current.push(character);
+    }
+
+    if !current.is_empty() {
+        chunks.push(current);
+    }
+
+    chunks
 }
 
 fn box_field_lines(title: &str, value: &str, max_chars: usize) -> Vec<BoxFieldLine> {

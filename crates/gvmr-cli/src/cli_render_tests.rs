@@ -42,6 +42,27 @@ fn minimal_report_xml() -> &'static str {
     "#
 }
 
+fn compliance_report_xml() -> &'static str {
+    r#"
+    <report>
+        <report id="audit-report">
+            <compliance_count>
+                <filtered>1</filtered>
+                <yes><filtered>1</filtered></yes>
+            </compliance_count>
+            <results>
+                <result id="result-1">
+                    <host>192.0.2.10</host>
+                    <port>general/tcp</port>
+                    <name>Compliance check</name>
+                    <compliance>yes</compliance>
+                </result>
+            </results>
+        </report>
+    </report>
+    "#
+}
+
 fn host_report_xml() -> &'static str {
     r#"
     <report>
@@ -102,6 +123,25 @@ fn render_xml_file_native_writes_pdf_output() {
         .expect("native PDF render should succeed");
 
     let bytes = fs::read(&output_path).expect("output PDF should be readable");
+
+    assert!(bytes.starts_with(b"%PDF"));
+    assert!(!bytes.is_empty());
+
+    let _ = fs::remove_dir_all(dir);
+}
+
+#[test]
+fn render_xml_file_native_compliance_writes_pdf_output() {
+    let dir = temp_test_dir("native-compliance-success");
+    let xml_path = dir.join("audit-report.xml");
+    let output_path = dir.join("compliance.pdf");
+
+    write_xml(&xml_path, compliance_report_xml());
+
+    render_xml_file(CliRendererType::NativeCompliance, &xml_path, &output_path)
+        .expect("native compliance PDF render should succeed");
+
+    let bytes = fs::read(&output_path).expect("compliance PDF should be readable");
 
     assert!(bytes.starts_with(b"%PDF"));
     assert!(!bytes.is_empty());

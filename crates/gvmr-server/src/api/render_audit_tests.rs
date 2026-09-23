@@ -666,6 +666,10 @@ async fn render_audit_xml_native_compliance_supports_delta_reports() {
         response.headers().get(CONTENT_TYPE).unwrap(),
         "application/pdf"
     );
+    assert_eq!(
+        response.headers().get(CONTENT_DISPOSITION).unwrap(),
+        "attachment; filename=\"native-compliance-delta-report.pdf\""
+    );
     assert!(
         !to_bytes(response.into_body(), usize::MAX)
             .await

@@ -364,6 +364,29 @@ fn minimal_inner_report_xml() -> String {
     .to_string()
 }
 
+fn minimal_delta_inner_report_xml() -> String {
+    r#"
+<report id="delta-report-id" type="delta">
+    <delta>
+        <report id="baseline-report-id">
+            <scan_run_status>Done</scan_run_status>
+        </report>
+    </delta>
+    <task id="task-id">
+        <name>Test task</name>
+    </task>
+    <scan_start>2025-01-01T00:00:00Z</scan_start>
+    <scan_end>2025-01-01T00:01:00Z</scan_end>
+    <results start="1" max="1000"></results>
+    <result_count>
+        <full>0</full>
+        <filtered>0</filtered>
+    </result_count>
+</report>
+"#
+    .to_string()
+}
+
 #[tokio::test]
 async fn render_returns_ok_response_with_headers_and_body() {
     let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
@@ -1917,6 +1940,43 @@ async fn render_xml_native_pdf_uses_real_native_pdf_renderer() {
 
         assert!(body.contains("Native PDF render failed"));
     }
+
+    let _ = fs::remove_dir_all(workdir);
+}
+
+#[tokio::test]
+async fn render_xml_native_pdf_delta_uses_delta_default_filename() {
+    let renderer = Arc::new(FakeRenderer::new(FakeRendererMode::Success));
+    let workdir = temp_test_dir("api-render-xml-native-pdf-delta-default-name");
+    let format = ReportFormat::built_in_native_pdf(
+        BUILT_IN_NATIVE_PDF_TECHNICAL_ID,
+        "Native PDF Technical Report",
+        "pdf",
+        "application/pdf",
+        workdir.clone(),
+    );
+    let state = test_state(AuthMode::Jwt, "render", vec![format], renderer.clone());
+
+    let mut request = render_xml_request(BUILT_IN_NATIVE_PDF_TECHNICAL_ID);
+    request.report_xml = minimal_delta_inner_report_xml();
+
+    let response = match render_xml(
+        State(state),
+        auth_context_with_render_scope(),
+        Json(request),
+    )
+    .await
+    {
+        Ok(response) => response,
+        Err(error) => error.into_response(),
+    };
+
+    assert_eq!(renderer.calls_count(), 0);
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers().get(CONTENT_DISPOSITION).unwrap(),
+        "attachment; filename=\"native-delta-report.pdf\""
+    );
 
     let _ = fs::remove_dir_all(workdir);
 }

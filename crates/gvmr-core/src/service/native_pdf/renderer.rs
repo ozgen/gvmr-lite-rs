@@ -30,6 +30,14 @@ impl NativePdfRenderer {
         pass2.render()
     }
 
+    /// Renders a delta report through the technical pipeline.
+    ///
+    /// `NativePdfDocument` detects delta reports and writes delta-specific cover,
+    /// summary, result, and diff content while this shared pipeline renders the PDF.
+    pub fn render_delta(&self, report: &ReportEnvelope) -> Result<Vec<u8>, NativePdfRenderError> {
+        self.render_technical(report)
+    }
+
     pub fn render_compliance(
         &self,
         report: &ReportEnvelope,
@@ -45,6 +53,17 @@ impl NativePdfRenderer {
         pass2.prepare_toc(Some(&toc_pages));
         pass2.render_compliance_report();
         pass2.output()
+    }
+
+    /// Renders a compliance delta report through the compliance pipeline.
+    ///
+    /// `NativePdfDocument` detects delta reports and adds the baseline metadata,
+    /// delta summary, result markers, and diffs while this shared pipeline renders the PDF.
+    pub fn render_compliance_delta(
+        &self,
+        report: &ReportEnvelope,
+    ) -> Result<Vec<u8>, NativePdfRenderError> {
+        self.render_compliance(report)
     }
 }
 

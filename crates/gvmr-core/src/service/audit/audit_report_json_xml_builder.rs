@@ -7,12 +7,69 @@ pub fn build_audit_report_xml_from_json(report_json: &Value) -> Result<String, R
 
     strip_nulls(&mut value);
 
-    let inner_report = extract_inner_report_json(value)?;
+    let mut inner_report = extract_inner_report_json(value)?;
+    normalize_delta_report(&mut inner_report);
 
     let mut out = String::from(r#"<?xml version="1.0" encoding="utf-8"?>"#);
     write_node(&mut out, "report", &inner_report);
 
     Ok(out)
+}
+
+fn normalize_delta_report(value: &mut Value) {
+    let Some(report) = value.as_object_mut() else {
+        return;
+    };
+
+    if report.contains_key("delta") {
+        let attrs = report
+            .entry("@attrs".to_string())
+            .or_insert_with(|| Value::Object(Map::new()));
+
+        if let Value::Object(attrs) = attrs {
+            attrs
+                .entry("type".to_string())
+                .or_insert_with(|| Value::String("delta".to_string()));
+        }
+    }
+
+    normalize_result_deltas(value);
+}
+
+fn normalize_result_deltas(value: &mut Value) {
+    let Some(results) = value
+        .as_object_mut()
+        .and_then(|report| report.get_mut("results"))
+        .and_then(Value::as_object_mut)
+    else {
+        return;
+    };
+
+    let Some(result) = results.get_mut("result") else {
+        return;
+    };
+
+    let items = match result {
+        Value::Array(items) => items,
+        Value::Object(_) => std::slice::from_mut(result),
+        _ => return,
+    };
+
+    for item in items {
+        let Some(delta) = item
+            .as_object_mut()
+            .and_then(|result| result.get_mut("delta"))
+            .and_then(Value::as_object_mut)
+        else {
+            continue;
+        };
+
+        if delta.contains_key("#text") {
+            delta.remove("state");
+        } else if let Some(state) = delta.remove("state") {
+            delta.insert("#text".to_string(), state);
+        }
+    }
 }
 
 fn extract_inner_report_json(value: Value) -> Result<Value, RenderError> {

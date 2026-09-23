@@ -30,7 +30,7 @@ fn report_json_to_inner_report(report_json: &dto::ReportJson) -> domain::InnerRe
         report_type: attr_string(report_json.attrs.as_ref(), "type"),
 
         gmp: report_json.gmp.as_ref().map(gmp_from_map),
-        delta: None,
+        delta: report_json.delta.as_ref().map(report_delta_from_dto),
         sort: None,
         filters: Some(filters_from_dto(&report_json.filters)),
         scan_run_status: report_json.scan_run_status.clone(),
@@ -194,7 +194,7 @@ fn should_keep_result(result: &dto::ReportResult) -> bool {
 
 fn report_result_from_dto(result: &dto::ReportResult) -> domain::ReportResult {
     domain::ReportResult {
-        id: attr_string(result.attrs.as_ref(), "id"),
+        id: attr_string(result.attrs.as_ref(), "id").or(result.id.clone()),
         name: result.name.clone(),
         owner: result.owner.as_ref().map(owner_from_dto),
         modification_time: result.modification_time.clone(),
@@ -217,7 +217,47 @@ fn report_result_from_dto(result: &dto::ReportResult) -> domain::ReportResult {
         original_severity: value_to_string(result.original_severity.as_ref()),
         compliance: result.compliance.clone(),
 
-        delta: None,
+        delta: result.delta.as_ref().map(result_delta_from_dto),
+    }
+}
+
+fn report_delta_from_dto(delta: &dto::ReportDeltaJson) -> domain::ReportDelta {
+    domain::ReportDelta {
+        report: delta.report.as_ref().map(delta_baseline_report_from_dto),
+    }
+}
+
+fn delta_baseline_report_from_dto(
+    report: &dto::DeltaBaselineReportJson,
+) -> domain::DeltaBaselineReport {
+    domain::DeltaBaselineReport {
+        id: report
+            .id
+            .clone()
+            .or_else(|| attr_string(report.attrs.as_ref(), "id")),
+        scan_run_status: report.scan_run_status.clone(),
+        timestamp: report.timestamp.clone(),
+        scan_start: report.scan_start.clone(),
+        scan_end: report.scan_end.clone(),
+    }
+}
+
+fn result_delta_from_dto(delta: &dto::ResultDeltaJson) -> domain::ResultDelta {
+    match delta {
+        dto::ResultDeltaJson::Text(value) => domain::ResultDelta {
+            state_text: Some(value.clone()),
+            result: None,
+            diff: None,
+        },
+        dto::ResultDeltaJson::Object(value) => domain::ResultDelta {
+            state_text: value.state.clone(),
+            result: value
+                .result
+                .as_deref()
+                .map(report_result_from_dto)
+                .map(Box::new),
+            diff: value.diff.clone(),
+        },
     }
 }
 

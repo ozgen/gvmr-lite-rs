@@ -186,18 +186,42 @@ async fn render_native_compliance_report(
     output_name: Option<String>,
 ) -> Result<RenderResult, ApiError> {
     let renderer = state.native_pdf_renderer.clone();
-    let filename = output_filename(output_name, &fmt, "native-compliance-report");
+    let is_delta_report = report.report.is_delta_report();
+    let filename = output_filename(
+        output_name,
+        &fmt,
+        if is_delta_report {
+            "native-compliance-delta-report"
+        } else {
+            "native-compliance-report"
+        },
+    );
 
-    let content = task::spawn_blocking(move || renderer.render_compliance(&report))
-        .await
-        .map_err(|err| {
-            tracing::error!(error = %err, "Native compliance PDF render task failed");
-            ApiError::internal(format!("Native compliance PDF render task failed: {err}"))
-        })?
-        .map_err(|err| {
-            tracing::error!(error = %err, "Native compliance PDF render failed");
-            ApiError::internal(format!("Native compliance PDF render failed: {err}"))
-        })?;
+    let content = if is_delta_report {
+        task::spawn_blocking(move || renderer.render_compliance_delta(&report))
+            .await
+            .map_err(|err| {
+                tracing::error!(error = %err, "Native compliance delta PDF render task failed");
+                ApiError::internal(format!(
+                    "Native compliance delta PDF render task failed: {err}"
+                ))
+            })?
+            .map_err(|err| {
+                tracing::error!(error = %err, "Native compliance delta PDF render failed");
+                ApiError::internal(format!("Native compliance delta PDF render failed: {err}"))
+            })?
+    } else {
+        task::spawn_blocking(move || renderer.render_compliance(&report))
+            .await
+            .map_err(|err| {
+                tracing::error!(error = %err, "Native compliance PDF render task failed");
+                ApiError::internal(format!("Native compliance PDF render task failed: {err}"))
+            })?
+            .map_err(|err| {
+                tracing::error!(error = %err, "Native compliance PDF render failed");
+                ApiError::internal(format!("Native compliance PDF render failed: {err}"))
+            })?
+    };
 
     Ok(RenderResult {
         content,

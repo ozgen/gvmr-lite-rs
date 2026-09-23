@@ -35,9 +35,21 @@ fn normalize_for_graph_gen(payload: &mut Value) {
         return;
     };
 
+    normalize_delta_report(payload);
     normalize_results(payload);
     normalize_ports(payload);
     normalize_filters(payload);
+}
+
+fn normalize_delta_report(payload: &mut Map<String, Value>) {
+    if !payload.contains_key("delta") {
+        return;
+    }
+
+    let attrs = ensure_object_field(payload, "@attrs");
+    attrs
+        .entry("type".to_string())
+        .or_insert_with(|| Value::String("delta".to_string()));
 }
 
 fn normalize_results(payload: &mut Map<String, Value>) {
@@ -112,6 +124,21 @@ fn normalize_results(payload: &mut Map<String, Value>) {
         if let Some(nvt) = result.get_mut("nvt").and_then(Value::as_object_mut) {
             normalize_nvt_refs(nvt);
         }
+
+        if let Some(delta) = result.get_mut("delta").and_then(Value::as_object_mut) {
+            normalize_result_delta(delta);
+        }
+    }
+}
+
+fn normalize_result_delta(delta: &mut Map<String, Value>) {
+    if delta.contains_key("#text") {
+        delta.remove("state");
+        return;
+    }
+
+    if let Some(state) = delta.remove("state") {
+        delta.insert("#text".to_string(), state);
     }
 }
 

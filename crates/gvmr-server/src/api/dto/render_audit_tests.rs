@@ -1,6 +1,11 @@
 // render_audit_tests.rs
 
 use super::*;
+use gvmr_core::{
+    domain::report_model::DeltaState,
+    service::audit::audit_report_json_xml_builder::build_audit_report_xml_from_json,
+    xml::report_validator::parse_report_xml_flexible,
+};
 use serde_json::json;
 
 fn minimal_report_json() -> AuditReportEnvelopeJson {
@@ -317,6 +322,49 @@ fn audit_result_host_deserializes_plain_string() {
     }
 
     assert_eq!(result.compliance.as_deref(), Some("NO"));
+}
+
+#[test]
+fn changed_audit_delta_dto_xml_round_trip_preserves_previous_result_and_diff() {
+    let report: AuditReportEnvelopeJson = serde_json::from_value(json!({
+        "report": {
+            "@attrs": { "id": "current-report" },
+            "delta": { "report": { "@id": "baseline-report" } },
+            "results": {
+                "result": [{
+                    "id": "current-result",
+                    "host": "127.0.0.1",
+                    "delta": {
+                        "state": "changed",
+                        "diff": "@@ -1 +1 @@\n-before\n+after",
+                        "result": {
+                            "id": "previous-result",
+                            "host": "127.0.0.1"
+                        }
+                    }
+                }]
+            }
+        }
+    }))
+    .expect("audit delta DTO should deserialize");
+
+    let xml = build_audit_report_xml_from_json(&serde_json::to_value(report).unwrap()).unwrap();
+    let parsed = parse_report_xml_flexible(&xml).unwrap();
+    let delta = parsed.report.results.as_ref().unwrap().result[0]
+        .delta
+        .as_ref()
+        .unwrap();
+
+    assert!(xml.contains(r#"<result id="previous-result">"#));
+    assert!(!xml.contains("<id>previous-result</id>"));
+    assert_eq!(delta.state(), Some(DeltaState::Changed));
+    assert_eq!(
+        delta
+            .previous_result()
+            .and_then(|result| result.id.as_deref()),
+        Some("previous-result")
+    );
+    assert_eq!(delta.diff.as_deref(), Some("@@ -1 +1 @@\n-before\n+after"));
 }
 
 #[test]

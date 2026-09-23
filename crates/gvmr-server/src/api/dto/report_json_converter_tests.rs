@@ -3,6 +3,10 @@ use serde_json::{Map, Value, json};
 
 use super::*;
 use crate::api::dto::render as dto;
+use gvmr_core::{
+    domain::report_model::DeltaState, service::report_xml_builder::build_report_xml,
+    xml::report_validator::parse_report_xml_flexible,
+};
 
 fn report_json_from_value(value: Value) -> dto::ReportJson {
     serde_json::from_value(value).unwrap()
@@ -40,6 +44,158 @@ fn report_json_to_envelope_maps_top_level_fields_and_inner_report_id() {
 
     assert_eq!(envelope.report.id.as_deref(), Some("report-id"));
     assert_eq!(envelope.report.scan_run_status.as_deref(), Some("Done"));
+}
+
+#[test]
+fn report_json_to_envelope_maps_delta_fields() {
+    let report_json = report_json_from_value(json!({
+        "filters": {
+            "term": "",
+            "keywords": { "keyword": [] }
+        },
+        "delta": {
+            "report": {
+                "@id": "baseline-report",
+                "scan_run_status": "Done",
+                "scan_start": "2026-05-29T08:40:23Z",
+                "scan_end": "2026-05-29T08:51:04Z"
+            }
+        },
+        "results": {
+            "result": [{
+                "id": "result-1",
+                "host": "127.0.0.1",
+                "threat": "High",
+                "severity": 5,
+                "delta": {
+                    "state": "changed",
+                    "diff": "@@ -1 +1 @@\n-Old\n+New",
+                    "result": {
+                        "id": "previous-result",
+                        "host": "127.0.0.1",
+                        "threat": "Medium",
+                        "severity": 3
+                    }
+                }
+            }]
+        },
+        "result_count": {
+            "filtered": 1
+        },
+        "ports": {
+            "port": []
+        },
+        "host": []
+    }));
+
+    let envelope = report_json_to_envelope(&report_json);
+
+    assert!(envelope.report.is_delta_report());
+
+    let delta = envelope.report.delta.expect("report delta should exist");
+    let baseline = delta.report.expect("baseline report should exist");
+    assert_eq!(baseline.id.as_deref(), Some("baseline-report"));
+    assert_eq!(baseline.scan_run_status.as_deref(), Some("Done"));
+
+    let result = &envelope
+        .report
+        .results
+        .expect("results should exist")
+        .result[0];
+    let result_delta = result.delta.as_ref().expect("result delta should exist");
+
+    assert_eq!(
+        result_delta.state(),
+        Some(gvmr_core::domain::report_model::DeltaState::Changed)
+    );
+    assert_eq!(
+        result_delta
+            .previous_result()
+            .and_then(|result| result.id.as_deref()),
+        Some("previous-result")
+    );
+}
+
+#[test]
+fn delta_dto_xml_round_trip_preserves_canonical_result_states() {
+    for (state, expected_state) in [
+        ("new", DeltaState::New),
+        ("gone", DeltaState::Gone),
+        ("same", DeltaState::Same),
+        ("changed", DeltaState::Changed),
+    ] {
+        let report_json = report_json_from_value(json!({
+            "@attrs": {
+                "id": "current-report"
+            },
+            "delta": {
+                "report": {
+                    "@id": "baseline-report"
+                }
+            },
+            "results": {
+                "result": [{
+                    "id": format!("{state}-result"),
+                    "host": "127.0.0.1",
+                    "delta": { "state": state }
+                }]
+            }
+        }));
+
+        let xml = build_report_xml(&serde_json::to_value(&report_json).unwrap()).unwrap();
+        let parsed = parse_report_xml_flexible(&xml).unwrap();
+        let result = &parsed.report.results.as_ref().unwrap().result[0];
+
+        assert!(xml.contains(r#"type="delta""#));
+        assert!(xml.contains(&format!("<delta>{state}</delta>")));
+        assert!(!xml.contains(&format!("<state>{state}</state>")));
+        assert!(parsed.report.is_delta_report());
+        assert_eq!(parsed.report.report_type.as_deref(), Some("delta"));
+        assert_eq!(
+            result.delta.as_ref().and_then(|delta| delta.state()),
+            Some(expected_state)
+        );
+    }
+}
+
+#[test]
+fn changed_delta_dto_xml_round_trip_preserves_previous_result_and_diff() {
+    let report_json = report_json_from_value(json!({
+        "@attrs": { "id": "current-report" },
+        "delta": { "report": { "@id": "baseline-report" } },
+        "results": {
+            "result": [{
+                "id": "current-result",
+                "host": "127.0.0.1",
+                "delta": {
+                    "state": "changed",
+                    "diff": "@@ -1 +1 @@\n-before\n+after",
+                    "result": {
+                        "id": "previous-result",
+                        "host": "127.0.0.1"
+                    }
+                }
+            }]
+        }
+    }));
+
+    let xml = build_report_xml(&serde_json::to_value(&report_json).unwrap()).unwrap();
+    let parsed = parse_report_xml_flexible(&xml).unwrap();
+    let delta = parsed.report.results.as_ref().unwrap().result[0]
+        .delta
+        .as_ref()
+        .unwrap();
+
+    assert!(xml.contains(r#"<result id="previous-result">"#));
+    assert!(!xml.contains("<id>previous-result</id>"));
+    assert_eq!(delta.state(), Some(DeltaState::Changed));
+    assert_eq!(
+        delta
+            .previous_result()
+            .and_then(|result| result.id.as_deref()),
+        Some("previous-result")
+    );
+    assert_eq!(delta.diff.as_deref(), Some("@@ -1 +1 @@\n-before\n+after"));
 }
 
 #[test]
@@ -1100,7 +1256,7 @@ fn report_json_to_envelope_maps_result_without_host() {
 
     let result = &results.result[0];
 
-    assert_eq!(result.id.as_deref(), None);
+    assert_eq!(result.id.as_deref(), Some("result-id"));
     assert_eq!(result.name.as_deref(), Some("Finding without host"));
     assert_eq!(result.host, None);
     assert_eq!(result.port.as_deref(), Some("general/tcp"));

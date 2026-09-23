@@ -8,6 +8,8 @@ use axum::{
     },
 };
 
+use tokio::task;
+
 use crate::{
     api::{
         dto::{render_audit::RenderAuditRequest, render_audit_xml::RenderAuditXmlRequest},
@@ -18,8 +20,14 @@ use crate::{
 };
 
 use gvmr_core::{
-    domain::report_format::{RendererBackend, ReportFormat},
+    domain::{
+        report_format::{RendererBackend, ReportFormat},
+        report_format_constants::BUILT_IN_NATIVE_PDF_COMPLIANCE_ID,
+        report_model::ReportEnvelope,
+    },
+    service::audit::audit_report_json_xml_builder::build_audit_report_xml_from_json,
     service::report_renderer::RenderResult,
+    xml::report_validator::parse_report_xml_flexible,
 };
 
 #[utoipa::path(
@@ -67,6 +75,17 @@ pub async fn render_audit(
             )
             .await
             .map_err(|err| ApiError::internal(format!("Audit render failed: {err}")))?,
+
+        RendererBackend::NativePdf if fmt.id == BUILT_IN_NATIVE_PDF_COMPLIANCE_ID => {
+            let report_json = req.report_json_value();
+            let report_xml = build_audit_report_xml_from_json(&report_json).map_err(|err| {
+                ApiError::internal(format!("Audit report XML build failed: {err}"))
+            })?;
+            let report = parse_report_xml_flexible(&report_xml).map_err(|err| {
+                ApiError::internal(format!("Audit report XML parse failed: {err}"))
+            })?;
+            render_native_compliance_report(state, fmt, report, req.output_name).await?
+        }
 
         RendererBackend::Typst | RendererBackend::NativePdf => {
             return Err(ApiError::new(
@@ -133,6 +152,18 @@ pub async fn render_audit_xml(
             .await
             .map_err(|err| ApiError::internal(format!("Render failed: {err}")))?,
 
+        RendererBackend::NativePdf if fmt.id == BUILT_IN_NATIVE_PDF_COMPLIANCE_ID => {
+            let report = parse_report_xml_flexible(&req.report_xml).map_err(|err| {
+                ApiError::new(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    "invalid_report_xml",
+                    format!("Report XML is not a valid report envelope or inner report: {err}"),
+                )
+            })?;
+
+            render_native_compliance_report(state, fmt, report, req.output_name).await?
+        }
+
         RendererBackend::Typst | RendererBackend::NativePdf => {
             return Err(ApiError::new(
                 StatusCode::UNPROCESSABLE_ENTITY,
@@ -146,6 +177,68 @@ pub async fn render_audit_xml(
     };
 
     build_render_response(result)
+}
+
+async fn render_native_compliance_report(
+    state: AppState,
+    fmt: ReportFormat,
+    report: ReportEnvelope,
+    output_name: Option<String>,
+) -> Result<RenderResult, ApiError> {
+    let renderer = state.native_pdf_renderer.clone();
+    let is_delta_report = report.report.is_delta_report();
+    let filename = output_filename(
+        output_name,
+        &fmt,
+        if is_delta_report {
+            "native-compliance-delta-report"
+        } else {
+            "native-compliance-report"
+        },
+    );
+
+    let content = if is_delta_report {
+        task::spawn_blocking(move || renderer.render_compliance_delta(&report))
+            .await
+            .map_err(|err| {
+                tracing::error!(error = %err, "Native compliance delta PDF render task failed");
+                ApiError::internal(format!(
+                    "Native compliance delta PDF render task failed: {err}"
+                ))
+            })?
+            .map_err(|err| {
+                tracing::error!(error = %err, "Native compliance delta PDF render failed");
+                ApiError::internal(format!("Native compliance delta PDF render failed: {err}"))
+            })?
+    } else {
+        task::spawn_blocking(move || renderer.render_compliance(&report))
+            .await
+            .map_err(|err| {
+                tracing::error!(error = %err, "Native compliance PDF render task failed");
+                ApiError::internal(format!("Native compliance PDF render task failed: {err}"))
+            })?
+            .map_err(|err| {
+                tracing::error!(error = %err, "Native compliance PDF render failed");
+                ApiError::internal(format!("Native compliance PDF render failed: {err}"))
+            })?
+    };
+
+    Ok(RenderResult {
+        content,
+        content_type: fmt.content_type,
+        filename,
+    })
+}
+
+fn output_filename(output_name: Option<String>, fmt: &ReportFormat, default_stem: &str) -> String {
+    output_name.unwrap_or_else(|| {
+        let extension = fmt.extension.trim();
+        if extension.is_empty() {
+            default_stem.to_string()
+        } else {
+            format!("{default_stem}.{extension}")
+        }
+    })
 }
 
 fn validate_audit_render_request(req: &RenderAuditRequest) -> Result<(), ApiError> {

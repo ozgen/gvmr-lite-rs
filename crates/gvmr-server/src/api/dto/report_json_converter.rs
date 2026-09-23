@@ -27,7 +27,10 @@ pub fn report_json_to_envelope(report_json: &dto::ReportJson) -> domain::ReportE
 fn report_json_to_inner_report(report_json: &dto::ReportJson) -> domain::InnerReport {
     domain::InnerReport {
         id: attr_string(report_json.attrs.as_ref(), "id"),
+        report_type: attr_string(report_json.attrs.as_ref(), "type"),
+
         gmp: report_json.gmp.as_ref().map(gmp_from_map),
+        delta: report_json.delta.as_ref().map(report_delta_from_dto),
         sort: None,
         filters: Some(filters_from_dto(&report_json.filters)),
         scan_run_status: report_json.scan_run_status.clone(),
@@ -50,6 +53,8 @@ fn report_json_to_inner_report(report_json: &dto::ReportJson) -> domain::InnerRe
         ports: Some(ports_from_dto(&report_json.ports)),
         results: Some(results_from_dto(&report_json.results)),
         result_count: Some(result_count_from_dto(&report_json.result_count)),
+        compliance_count: None,
+        compliance: None,
         severity: report_json.severity.as_ref().map(severity_from_dto),
 
         hosts_detail: report_json.host.iter().map(report_host_from_dto).collect(),
@@ -189,7 +194,7 @@ fn should_keep_result(result: &dto::ReportResult) -> bool {
 
 fn report_result_from_dto(result: &dto::ReportResult) -> domain::ReportResult {
     domain::ReportResult {
-        id: attr_string(result.attrs.as_ref(), "id"),
+        id: attr_string(result.attrs.as_ref(), "id").or(result.id.clone()),
         name: result.name.clone(),
         owner: result.owner.as_ref().map(owner_from_dto),
         modification_time: result.modification_time.clone(),
@@ -211,6 +216,48 @@ fn report_result_from_dto(result: &dto::ReportResult) -> domain::ReportResult {
         original_threat: result.original_threat.clone(),
         original_severity: value_to_string(result.original_severity.as_ref()),
         compliance: result.compliance.clone(),
+
+        delta: result.delta.as_ref().map(result_delta_from_dto),
+    }
+}
+
+fn report_delta_from_dto(delta: &dto::ReportDeltaJson) -> domain::ReportDelta {
+    domain::ReportDelta {
+        report: delta.report.as_ref().map(delta_baseline_report_from_dto),
+    }
+}
+
+fn delta_baseline_report_from_dto(
+    report: &dto::DeltaBaselineReportJson,
+) -> domain::DeltaBaselineReport {
+    domain::DeltaBaselineReport {
+        id: report
+            .id
+            .clone()
+            .or_else(|| attr_string(report.attrs.as_ref(), "id")),
+        scan_run_status: report.scan_run_status.clone(),
+        timestamp: report.timestamp.clone(),
+        scan_start: report.scan_start.clone(),
+        scan_end: report.scan_end.clone(),
+    }
+}
+
+fn result_delta_from_dto(delta: &dto::ResultDeltaJson) -> domain::ResultDelta {
+    match delta {
+        dto::ResultDeltaJson::Text(value) => domain::ResultDelta {
+            state_text: Some(value.clone()),
+            result: None,
+            diff: None,
+        },
+        dto::ResultDeltaJson::Object(value) => domain::ResultDelta {
+            state_text: value.state.clone(),
+            result: value
+                .result
+                .as_deref()
+                .map(report_result_from_dto)
+                .map(Box::new),
+            diff: value.diff.clone(),
+        },
     }
 }
 
@@ -383,6 +430,8 @@ fn report_host_from_dto(host: &dto::HostEntry) -> domain::ReportHost {
         end: host.end.clone(),
         port_count: host.port_count.as_ref().map(page_count_from_dto),
         result_count: host.result_count.as_ref().map(host_result_count_from_dto),
+        compliance_count: None,
+        host_compliance: None,
         detail: host.detail.iter().map(host_detail_from_dto).collect(),
     }
 }

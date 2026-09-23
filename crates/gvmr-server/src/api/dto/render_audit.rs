@@ -94,6 +94,51 @@ pub struct AuditReportEnvelopeJson {
 }
 
 #[derive(Debug, Deserialize, Serialize, ToSchema, Default)]
+pub struct AuditReportDeltaJson {
+    pub report: Option<AuditDeltaBaselineReportJson>,
+
+    #[serde(flatten)]
+    pub extra: Map<String, Value>,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema, Default)]
+pub struct AuditDeltaBaselineReportJson {
+    #[serde(rename = "@attrs")]
+    pub attrs: Option<Map<String, Value>>,
+
+    #[serde(rename = "@id")]
+    pub id: Option<String>,
+
+    pub scan_run_status: Option<String>,
+    pub timestamp: Option<String>,
+    pub scan_start: Option<String>,
+    pub scan_end: Option<String>,
+
+    #[serde(flatten)]
+    pub extra: Map<String, Value>,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+#[serde(untagged)]
+pub enum AuditResultDeltaJson {
+    Text(String),
+    Object(AuditResultDeltaObjectJson),
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema, Default)]
+pub struct AuditResultDeltaObjectJson {
+    #[serde(rename = "#text", alias = "state")]
+    pub state: Option<String>,
+
+    #[schema(no_recursion)]
+    pub result: Option<Box<AuditResultJson>>,
+    pub diff: Option<String>,
+
+    #[serde(flatten)]
+    pub extra: Map<String, Value>,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema, Default)]
 pub struct AuditReportBodyJson {
     #[serde(rename = "@attrs")]
     pub attrs: Option<Map<String, Value>>,
@@ -101,6 +146,7 @@ pub struct AuditReportBodyJson {
     pub gmp: Option<AuditGmpJson>,
     pub sort: Option<Value>,
     pub filters: Option<AuditFiltersJson>,
+    pub delta: Option<AuditReportDeltaJson>,
 
     pub scan_run_status: Option<String>,
 
@@ -274,6 +320,7 @@ pub struct AuditResultJson {
     #[serde(rename = "@attrs")]
     pub attrs: Option<Map<String, Value>>,
 
+    #[serde(rename = "@id", alias = "id")]
     pub id: Option<String>,
     pub name: Option<String>,
     pub owner: Option<AuditOwnerJson>,
@@ -299,7 +346,7 @@ pub struct AuditResultJson {
     pub detection: Option<Value>,
     pub notes: Option<Value>,
     pub overrides: Option<Value>,
-    pub delta: Option<Value>,
+    pub delta: Option<AuditResultDeltaJson>,
     pub cve: Option<Value>,
 
     #[serde(flatten)]

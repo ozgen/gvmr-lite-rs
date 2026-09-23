@@ -187,11 +187,58 @@ pub struct OciImage {
     pub extra: Map<String, Value>,
 }
 
+#[derive(Debug, Deserialize, Serialize, ToSchema, Default)]
+pub struct ReportDeltaJson {
+    pub report: Option<DeltaBaselineReportJson>,
+
+    #[serde(flatten)]
+    pub extra: Map<String, Value>,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema, Default)]
+pub struct DeltaBaselineReportJson {
+    #[serde(rename = "@attrs")]
+    pub attrs: Option<Map<String, Value>>,
+
+    #[serde(rename = "@id")]
+    pub id: Option<String>,
+
+    pub scan_run_status: Option<String>,
+    pub timestamp: Option<String>,
+    pub scan_start: Option<String>,
+    pub scan_end: Option<String>,
+
+    #[serde(flatten)]
+    pub extra: Map<String, Value>,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+#[serde(untagged)]
+pub enum ResultDeltaJson {
+    Text(String),
+    Object(ResultDeltaObjectJson),
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema, Default)]
+pub struct ResultDeltaObjectJson {
+    #[serde(rename = "#text", alias = "state")]
+    pub state: Option<String>,
+
+    #[schema(no_recursion)]
+    pub result: Option<Box<ReportResult>>,
+    pub diff: Option<String>,
+
+    #[serde(flatten)]
+    pub extra: Map<String, Value>,
+}
+
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct ReportResult {
     #[serde(rename = "@attrs")]
     pub attrs: Option<Map<String, Value>>,
 
+    #[serde(rename = "@id", alias = "id")]
+    pub id: Option<String>,
     pub name: Option<String>,
     pub owner: Option<Owner>,
     pub modification_time: Option<String>,
@@ -212,7 +259,7 @@ pub struct ReportResult {
     pub original_severity: Option<Value>,
     pub compliance: Option<String>,
 
-    pub delta: Option<Map<String, Value>>,
+    pub delta: Option<ResultDeltaJson>,
     pub notes: Option<Map<String, Value>>,
     pub overrides: Option<Map<String, Value>>,
     pub detection: Option<Detection>,
@@ -374,6 +421,7 @@ pub struct ReportJson {
 
     pub gmp: Option<Map<String, Value>>,
     pub sort: Option<Map<String, Value>>,
+    pub delta: Option<ReportDeltaJson>,
 
     #[serde(default)]
     pub filters: Filters,

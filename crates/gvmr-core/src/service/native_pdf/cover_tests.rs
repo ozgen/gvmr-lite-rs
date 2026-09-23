@@ -1,5 +1,7 @@
 use fpdf::Pdf;
 
+use super::*;
+
 use crate::{
     domain::report_model::ReportEnvelope,
     service::native_pdf::{document::NativePdfDocument, toc::TocEntry},
@@ -43,6 +45,23 @@ fn toc_entry(title: &str, page: usize) -> TocEntry {
         number: String::new(),
         link: 0,
     }
+}
+
+#[test]
+fn cover_title_preserves_normal_and_compliance_titles() {
+    assert_eq!(cover_title(false, false), "Scan Report");
+    assert_eq!(cover_title(true, false), "Compliance Report");
+}
+
+#[test]
+fn cover_title_uses_delta_title_only_for_technical_delta_reports() {
+    assert_eq!(cover_title(false, true), "Delta Report");
+}
+
+#[test]
+fn summary_heading_uses_delta_heading_only_for_delta_reports() {
+    assert_eq!(summary_heading(false), "Summary");
+    assert_eq!(summary_heading(true), "Delta Report Summary");
 }
 
 #[test]

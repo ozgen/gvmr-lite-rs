@@ -93,7 +93,6 @@ pub async fn render(
 
         RendererBackend::NativePdf => {
             let report = report_json_to_envelope(&req.report_json);
-
             render_native_pdf_report(state, fmt, report, req.output_name).await?
         }
     };
@@ -213,18 +212,40 @@ async fn render_native_pdf_report(
     output_name: Option<String>,
 ) -> Result<RenderResult, ApiError> {
     let renderer = state.native_pdf_renderer.clone();
-    let filename = output_filename(output_name, &fmt, "native-technical-report");
+    let is_delta_report = report.report.is_delta_report();
+    let filename = output_filename(
+        output_name,
+        &fmt,
+        if is_delta_report {
+            "native-delta-report"
+        } else {
+            "native-technical-report"
+        },
+    );
 
-    let content = task::spawn_blocking(move || renderer.render(&report))
-        .await
-        .map_err(|err| {
-            tracing::error!(error = %err, "Native PDF render task failed");
-            ApiError::internal(format!("Native PDF render task failed: {err}"))
-        })?
-        .map_err(|err| {
-            tracing::error!(error = %err, "Native PDF render failed");
-            ApiError::internal(format!("Native PDF render failed: {err}"))
-        })?;
+    let content = if is_delta_report {
+        task::spawn_blocking(move || renderer.render_delta(&report))
+            .await
+            .map_err(|err| {
+                tracing::error!(error = %err, "Native PDF delta render task failed");
+                ApiError::internal(format!("Native PDF delta render task failed: {err}"))
+            })?
+            .map_err(|err| {
+                tracing::error!(error = %err, "Native PDF delta render failed");
+                ApiError::internal(format!("Native PDF delta render failed: {err}"))
+            })?
+    } else {
+        task::spawn_blocking(move || renderer.render(&report))
+            .await
+            .map_err(|err| {
+                tracing::error!(error = %err, "Native PDF render task failed");
+                ApiError::internal(format!("Native PDF render task failed: {err}"))
+            })?
+            .map_err(|err| {
+                tracing::error!(error = %err, "Native PDF render failed");
+                ApiError::internal(format!("Native PDF render failed: {err}"))
+            })?
+    };
 
     Ok(RenderResult {
         content,

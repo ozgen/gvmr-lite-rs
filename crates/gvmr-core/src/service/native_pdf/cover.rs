@@ -9,13 +9,16 @@ impl<'a> NativePdfDocument<'a> {
         self.pdf.add_page();
 
         let view = ReportView::from_report(&self.report.report);
+        let is_delta_report = !self.compliance_mode && self.report.report.is_delta_report();
 
         self.pdf.set_y(Unit::mm(45.0));
         self.pdf.set_font("Helvetica", "", Unit::pt(18.0));
+        let title = cover_title(self.compliance_mode, is_delta_report);
+
         self.pdf.cell_format(
             Unit::mm(CONTENT_WIDTH_MM),
             Unit::mm(10.0),
-            "Scan Report",
+            title,
             "",
             1,
             "C",
@@ -41,10 +44,11 @@ impl<'a> NativePdfDocument<'a> {
 
         self.pdf.ln(Unit::mm(8.0));
         self.pdf.set_font("Helvetica", "B", Unit::pt(9.0));
+        let summary_heading = summary_heading(is_delta_report);
         self.pdf.cell_format(
             Unit::mm(CONTENT_WIDTH_MM),
             Unit::mm(6.0),
-            "Summary",
+            summary_heading,
             "",
             1,
             "C",
@@ -55,10 +59,18 @@ impl<'a> NativePdfDocument<'a> {
 
         self.pdf.set_x(Unit::mm(35.0));
         self.pdf.set_font("Helvetica", "", Unit::pt(9.0));
+        let summary = if self.compliance_mode {
+            "This document reports on the results of an automatic compliance scan.".to_string()
+        } else if is_delta_report {
+            view.delta_summary_text()
+        } else {
+            view.summary_text()
+        };
+
         self.pdf.multi_cell(
             Unit::mm(140.0),
             Unit::mm(4.8),
-            &clean_text(&view.summary_text()),
+            &clean_text(&summary),
             "",
             "L",
             false,
@@ -89,6 +101,24 @@ impl<'a> NativePdfDocument<'a> {
 
             self.write_toc_entry(&entry);
         }
+    }
+}
+
+fn cover_title(compliance_mode: bool, is_delta_report: bool) -> &'static str {
+    if compliance_mode {
+        "Compliance Report"
+    } else if is_delta_report {
+        "Delta Report"
+    } else {
+        "Scan Report"
+    }
+}
+
+fn summary_heading(is_delta_report: bool) -> &'static str {
+    if is_delta_report {
+        "Delta Report Summary"
+    } else {
+        "Summary"
     }
 }
 

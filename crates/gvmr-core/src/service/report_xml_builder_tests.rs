@@ -159,6 +159,68 @@ fn normalizes_info_threat_to_low() {
 }
 
 #[test]
+fn preserves_delta_report_and_result_delta_node_shapes() {
+    let input = json!({
+        "report": {
+            "delta": {
+                "report": {
+                    "@id": "baseline-report",
+                    "scan_run_status": "Done"
+                }
+            },
+            "results": {
+                "result": [{
+                    "host": "127.0.0.1",
+                    "nvt": {
+                        "@oid": "1.2.3"
+                    },
+                    "delta": {
+                        "state": "changed",
+                        "diff": "@@ -1 +1 @@\n-Old\n+New",
+                        "result": {
+                            "@id": "previous-result",
+                            "host": "127.0.0.1",
+                            "threat": "Low"
+                        }
+                    }
+                }]
+            }
+        }
+    });
+
+    let xml = build_report_xml(&input).unwrap();
+
+    assert!(xml.contains(r#"<report type="delta">"#));
+    assert!(xml.contains(r#"<delta><report id="baseline-report">"#));
+    assert!(xml.contains("<delta>changed"));
+    assert!(!xml.contains("<state>changed</state>"));
+    assert!(xml.contains(r#"<result id="previous-result">"#));
+    assert!(!xml.contains("<id>previous-result</id>"));
+    assert!(xml.contains("<diff>@@ -1 +1 @@\n-Old\n+New</diff>"));
+}
+
+#[test]
+fn serializes_simple_result_delta_states_as_text() {
+    for state in ["new", "gone", "same"] {
+        let input = json!({
+            "report": {
+                "results": {
+                    "result": [{
+                        "host": "127.0.0.1",
+                        "delta": { "state": state }
+                    }]
+                }
+            }
+        });
+
+        let xml = build_report_xml(&input).unwrap();
+
+        assert!(xml.contains(&format!("<delta>{state}</delta>")));
+        assert!(!xml.contains(&format!("<state>{state}</state>")));
+    }
+}
+
+#[test]
 fn normalizes_scalar_ref_item_to_ref_id_attribute() {
     let input = json!({
         "report": {

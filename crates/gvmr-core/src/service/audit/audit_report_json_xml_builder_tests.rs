@@ -240,6 +240,31 @@ fn writes_text_before_child_nodes() {
 }
 
 #[test]
+fn normalizes_delta_state_as_text_and_marks_delta_report() {
+    let xml = build(json!({
+        "report": {
+            "delta": {
+                "report": {
+                    "@id": "baseline-report"
+                }
+            },
+            "results": {
+                "result": [{
+                    "@id": "result-1",
+                    "delta": {
+                        "state": "same"
+                    }
+                }]
+            }
+        }
+    }));
+
+    assert!(xml.contains(r#"type="delta""#));
+    assert!(xml.contains("<delta>same</delta>"));
+    assert!(!xml.contains("<state>same</state>"));
+}
+
+#[test]
 fn writes_string_number_and_bool_nodes() {
     let xml = build(json!({
         "report": {

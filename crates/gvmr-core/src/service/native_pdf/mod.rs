@@ -1,5 +1,7 @@
+mod compliance;
 mod constants;
 mod cover;
+pub mod delta;
 mod document;
 mod error;
 mod findings;

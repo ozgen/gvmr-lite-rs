@@ -24,6 +24,61 @@ fn minimal_report() -> ReportEnvelope {
     )
 }
 
+fn delta_report() -> ReportEnvelope {
+    parse_report(
+        r#"
+        <report>
+            <report id="current-report" type="delta">
+                <delta>
+                    <report id="baseline-report">
+                        <scan_run_status>Done</scan_run_status>
+                    </report>
+                </delta>
+                <result_count><full>1</full><filtered>1</filtered></result_count>
+                <results>
+                    <result id="current-result">
+                        <host>192.0.2.10</host>
+                        <name>Changed finding</name>
+                        <threat>High</threat>
+                        <severity>8.0</severity>
+                        <delta>changed<result id="previous-result"><host>192.0.2.10</host><name>Previous finding</name></result><diff>@@ -1 +1 @@
+-before
++after</diff></delta>
+                    </result>
+                </results>
+            </report>
+        </report>
+        "#,
+    )
+}
+
+fn compliance_delta_report() -> ReportEnvelope {
+    parse_report(
+        r#"
+        <report>
+            <report id="current-compliance-report" type="delta">
+                <delta>
+                    <report id="baseline-compliance-report">
+                        <scan_run_status>Done</scan_run_status>
+                    </report>
+                </delta>
+                <compliance_count><filtered>1</filtered><yes><filtered>1</filtered></yes></compliance_count>
+                <results>
+                    <result id="current-result">
+                        <host>192.0.2.10</host>
+                        <name>Changed check</name>
+                        <compliance>yes</compliance>
+                        <delta>changed<result id="previous-result"><host>192.0.2.10</host><name>Previous check</name><compliance>no</compliance></result><diff>@@ -1 +1 @@
+-no
++yes</diff></delta>
+                    </result>
+                </results>
+            </report>
+        </report>
+        "#,
+    )
+}
+
 fn host_report() -> ReportEnvelope {
     parse_report(
         r#"
@@ -207,6 +262,26 @@ fn render_minimal_report_returns_pdf_bytes() {
     let bytes = renderer
         .render(&report)
         .expect("minimal native PDF render should succeed");
+
+    assert!(bytes.starts_with(b"%PDF"));
+    assert!(!bytes.is_empty());
+}
+
+#[test]
+fn render_delta_uses_delta_aware_document_pipeline() {
+    let bytes = NativePdfRenderer::new()
+        .render_delta(&delta_report())
+        .expect("delta native PDF render should succeed");
+
+    assert!(bytes.starts_with(b"%PDF"));
+    assert!(!bytes.is_empty());
+}
+
+#[test]
+fn render_compliance_delta_uses_delta_aware_document_pipeline() {
+    let bytes = NativePdfRenderer::new()
+        .render_compliance_delta(&compliance_delta_report())
+        .expect("compliance delta native PDF render should succeed");
 
     assert!(bytes.starts_with(b"%PDF"));
     assert!(!bytes.is_empty());

@@ -28,6 +28,8 @@ use utoipa::OpenApi;
             crate::api::dto::render_xml::RenderXmlRequest,
             crate::api::dto::render_audit::RenderAuditRequest,
             crate::api::dto::render_audit_xml::RenderAuditXmlRequest,
+            crate::api::dto::render::ResultDeltaObjectJson,
+            crate::api::dto::render_audit::AuditResultDeltaObjectJson,
         )
     ),
     tags(
@@ -45,4 +47,11 @@ fn openapi_document_can_be_generated() {
     let doc = ApiDoc::openapi();
 
     assert_eq!(doc.info.title, env!("CARGO_PKG_NAME"));
+
+    let schemas = doc
+        .components
+        .expect("OpenAPI components should exist")
+        .schemas;
+    assert!(schemas.contains_key("ResultDeltaObjectJson"));
+    assert!(schemas.contains_key("AuditResultDeltaObjectJson"));
 }

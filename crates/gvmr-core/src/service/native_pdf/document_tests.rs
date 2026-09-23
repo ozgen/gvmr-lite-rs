@@ -34,6 +34,37 @@ fn test_report() -> ReportEnvelope {
     .expect("test report XML should parse")
 }
 
+fn delta_report() -> ReportEnvelope {
+    parse_report_xml_flexible(
+        r#"
+        <report>
+            <report id="current-report" type="delta">
+                <timestamp>2026-09-02T09:32:31Z</timestamp>
+                <scan_start>2026-09-02T09:32:29Z</scan_start>
+                <scan_end>2026-09-02T09:32:31Z</scan_end>
+                <delta>
+                    <report id="baseline-report">
+                        <scan_run_status>Done</scan_run_status>
+                        <timestamp>2026-09-01T09:32:31Z</timestamp>
+                        <scan_start>2026-09-01T09:32:29Z</scan_start>
+                        <scan_end>2026-09-01T09:32:31Z</scan_end>
+                    </report>
+                </delta>
+                <results>
+                    <result id="result-1">
+                        <host>192.0.2.10</host>
+                        <name>Delta finding</name>
+                        <threat>High</threat>
+                        <severity>8.0</severity>
+                    </result>
+                </results>
+            </report>
+        </report>
+        "#,
+    )
+    .expect("delta report should parse")
+}
+
 #[test]
 fn new_initializes_pdf_document_state() {
     let report = test_report();
@@ -97,6 +128,26 @@ fn render_adds_pages() {
 
     assert!(bytes.starts_with(b"%PDF"));
     assert!(document.pdf.page_count() >= 1);
+    assert!(document.pdf.ok());
+}
+
+#[test]
+fn render_delta_report_starts_results_after_cover() {
+    let report = delta_report();
+    let mut document = NativePdfDocument::new(&report);
+
+    document.prepare_toc(None);
+    let bytes = document
+        .render()
+        .expect("native delta PDF render should succeed");
+
+    assert!(bytes.starts_with(b"%PDF"));
+    assert_eq!(document.pdf.page_count(), 3);
+    assert_eq!(document.toc[0].title, "Result Overview");
+    assert_eq!(document.toc[0].page, 2);
+    assert_eq!(document.toc[1].title, "Results per Host");
+    assert_eq!(document.toc[1].page, 3);
+    assert_eq!(document.toc[2].page, 3);
     assert!(document.pdf.ok());
 }
 

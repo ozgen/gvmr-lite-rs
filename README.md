@@ -1,12 +1,13 @@
 # gvmr-lite-rs
 
-A lightweight Rust REST service for parsing, caching, and rendering GVM report formats.
+A lightweight Rust REST service for discovering, caching, and rendering GVM report formats.
 
-This project is a Rust rewrite of `gvmr-lite`, focusing on:
+The project focuses on:
 
-- preserving external API behavior
-- improving modularity and maintainability
-- preparing for better performance and rendering backends
+- Moving report rendering out of the main application into a dedicated HTTP service.
+- Rendering reports from structured report data or XML payloads.
+- Discovering and caching report formats.
+- Producing requested report output through a clean, pluggable rendering architecture.
 
 ---
 
@@ -46,23 +47,38 @@ Currently implemented:
 
 - Rust (stable)
 - Cargo
+- Make
 
-### Run
+### Run the server
 
 ```bash
-cargo run -p gvmr-server
+make run-server
 ```
 
 With environment variables:
 
 ```bash
-GVMR_PORT=8084 GVMR_LOG_LEVEL=debug cargo run -p gvmr-server
+GVMR_PORT=8084 LOG_LEVEL=debug make run-server
 ```
 
 Or using a `.env` file:
 
 ```bash
-cargo run -p gvmr-server
+make run-server
+```
+
+### Run the CLI
+
+By default, the CLI target shows help:
+
+```bash
+make run-cli
+```
+
+Pass CLI arguments with `CLI_ARGS`:
+
+```bash
+make run-cli CLI_ARGS="--xml scripts/report.xml --type native --output report.pdf"
 ```
 
 ---
@@ -71,60 +87,153 @@ cargo run -p gvmr-server
 
 ### Recommended Tools
 
-Install these tools for a faster and more productive development workflow:
+The Makefile is the main local development entry point.
+
+Install the optional Cargo tools used by the test and coverage targets:
 
 ```bash
-cargo install bacon
 cargo install cargo-nextest --locked
 cargo install cargo-llvm-cov
-
 ```
 
-### Usage
+### Available Make targets
 
-Start the development watcher:
+Show all common commands:
 
 ```bash
-bacon
+make help
 ```
 
-Useful shortcuts inside Bacon:
+Check the whole workspace:
 
-| Key | Action                  |
-| --- | ----------------------- |
-| `r` | Run the service         |
-| `t` | Run tests (nextest)     |
-| `c` | Run clippy (strict)     |
-| `f` | Fix formatting          |
-| `x` | Check formatting        |
-| `v` | Run coverage (llvm-cov) |
+```bash
+make check
+```
+
+Check individual crates:
+
+```bash
+make check-core
+make check-server
+make check-cli
+```
+
+Run the server:
+
+```bash
+make run-server
+```
+
+Run the CLI:
+
+```bash
+make run-cli
+```
+
+Run the standard workspace test suite:
+
+```bash
+make test
+```
+
+Run tests with `cargo-nextest`:
+
+```bash
+make nextest
+```
+
+Generate and open HTML coverage:
+
+```bash
+make cover
+```
+
+Run strict Clippy checks:
+
+```bash
+make clippy
+```
+
+Format the workspace:
+
+```bash
+make fmt
+```
+
+Check formatting without modifying files:
+
+```bash
+make fmt-check
+```
+
+Build the workspace:
+
+```bash
+make build
+```
+
+Build release binaries:
+
+```bash
+make build-release
+```
+
+Clean build artifacts:
+
+```bash
+make clean
+```
 
 ---
 
 ## Code Quality
 
+The preferred workflow is to use the Makefile so local development and CI can share the same commands.
+
 ### Format code
 
 ```bash
-cargo fmt --all
+make fmt
+```
+
+### Check formatting
+
+```bash
+make fmt-check
 ```
 
 ### Lint (strict)
 
 ```bash
-cargo clippy --all-targets --all-features -- -D warnings
+make clippy
 ```
 
 ### Run tests
 
 ```bash
-cargo nextest run --all-targets
+make test
+```
+
+For `cargo-nextest`:
+
+```bash
+make nextest
 ```
 
 ### Coverage
 
 ```bash
-cargo llvm-cov --all-targets --ignore-filename-regex '(_tests\.rs|tests/)' --html --open
+make cover
+```
+
+### Full local verification
+
+A typical pre-commit or pre-push verification sequence is:
+
+```bash
+make fmt-check
+make clippy
+make test
 ```
 
 ---

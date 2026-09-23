@@ -194,7 +194,7 @@ fn validate_report_root_and_detect_shape(
                 }
 
                 if !seen_root {
-                    if start.name().as_ref() != b"report" {
+                    if start.name().as_ref() != "report" {
                         return Err(ReportXmlValidationError::InvalidRootElement);
                     }
 
@@ -203,7 +203,7 @@ fn validate_report_root_and_detect_shape(
                     continue;
                 }
 
-                if root_depth == 1 && start.name().as_ref() == b"report" {
+                if root_depth == 1 && start.name().as_ref() == "report" {
                     has_direct_nested_report = true;
                 }
 
@@ -218,7 +218,7 @@ fn validate_report_root_and_detect_shape(
                 }
 
                 if !seen_root {
-                    if start.name().as_ref() != b"report" {
+                    if start.name().as_ref() != "report" {
                         return Err(ReportXmlValidationError::InvalidRootElement);
                     }
 
@@ -227,7 +227,7 @@ fn validate_report_root_and_detect_shape(
                     continue;
                 }
 
-                if root_depth == 1 && start.name().as_ref() == b"report" {
+                if root_depth == 1 && start.name().as_ref() == "report" {
                     has_direct_nested_report = true;
                 }
             }
@@ -248,9 +248,7 @@ fn validate_report_root_and_detect_shape(
             }
 
             Ok(Event::Text(text)) => {
-                let value = text
-                    .decode()
-                    .map_err(|err| ReportXmlValidationError::InvalidXml(err.to_string()))?;
+                let value = text.as_ref();
 
                 if value.trim().is_empty() {
                     continue;

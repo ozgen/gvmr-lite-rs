@@ -61,7 +61,7 @@ fn parse_report_format_xml_str(xml: &str) -> Result<ParsedReportFormat, ReportFo
 
     loop {
         match reader.read_event()? {
-            Event::Start(event) => handle_start(&mut state, &reader, event)?,
+            Event::Start(event) => handle_start(&mut state, event)?,
             Event::Text(text) => handle_text(&mut state, text)?,
             Event::End(event) => handle_end(&mut state, event)?,
             Event::Eof => break,
@@ -93,18 +93,17 @@ struct FileParseState {
 
 fn handle_start(
     state: &mut ReportFormatParseState,
-    reader: &Reader<&[u8]>,
     event: BytesStart<'_>,
 ) -> Result<(), ReportFormatParseError> {
     let tag = tag_name(event.name().as_ref());
     state.current_tag = Some(tag.clone());
 
     if tag == "report_format" && state.id.is_none() {
-        state.id = read_optional_attr(&event, reader, b"id")?;
+        state.id = read_optional_attr(&event, "id")?;
     }
 
     if tag == "file" {
-        let file_name = read_optional_attr(&event, reader, b"name")?
+        let file_name = read_optional_attr(&event, "name")?
             .ok_or(ReportFormatParseError::MissingAttribute("file@name"))?;
 
         state.current_file = Some(FileParseState {
@@ -120,7 +119,7 @@ fn handle_text(
     state: &mut ReportFormatParseState,
     text: BytesText<'_>,
 ) -> Result<(), ReportFormatParseError> {
-    let value = text.decode()?.trim().to_string();
+    let value = text.as_ref().trim().to_string();
 
     if let Some(file) = state.current_file.as_mut() {
         file.text.push_str(&value);
@@ -184,22 +183,20 @@ fn decode_file_content(
 
 fn read_optional_attr(
     event: &BytesStart<'_>,
-    reader: &Reader<&[u8]>,
-    attr_name: &[u8],
+    attr_name: &str,
 ) -> Result<Option<String>, ReportFormatParseError> {
     for attr in event.attributes().flatten() {
         if attr.key.as_ref() == attr_name {
-            let value =
-                attr.decoded_and_normalized_value(XmlVersion::Explicit1_1, reader.decoder())?;
-            return Ok(Some(value.to_string()));
+            let value = attr.normalized_value(XmlVersion::Explicit1_1)?;
+            return Ok(Some(value.into_owned()));
         }
     }
 
     Ok(None)
 }
 
-fn tag_name(name: &[u8]) -> String {
-    String::from_utf8_lossy(name).to_string()
+fn tag_name(name: &str) -> String {
+    name.to_string()
 }
 
 impl ReportFormatParseState {

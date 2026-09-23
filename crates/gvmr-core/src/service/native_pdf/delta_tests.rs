@@ -1,9 +1,107 @@
 use super::*;
 
 use crate::{
-    domain::report_model::ReportEnvelope, service::native_pdf::document::NativePdfDocument,
+    domain::report_model::ReportEnvelope,
+    service::{native_pdf::document::NativePdfDocument, pdf_renderer_helper::clean_text},
     xml::report_validator::parse_report_xml_flexible,
 };
+
+impl<'a> NativePdfDocument<'a> {
+    fn write_delta_report_metadata(&mut self) {
+        if !self.has_delta_report_metadata() {
+            return;
+        }
+
+        let Some(baseline) = self
+            .report
+            .report
+            .delta
+            .as_ref()
+            .and_then(|delta| delta.report.as_ref())
+        else {
+            return;
+        };
+
+        let rows = [
+            ("Reference Report", baseline.id.as_deref()),
+            ("Reference Status", baseline.scan_run_status.as_deref()),
+            ("Reference Timestamp", baseline.timestamp.as_deref()),
+            ("Reference Scan Start", baseline.scan_start.as_deref()),
+            ("Reference Scan End", baseline.scan_end.as_deref()),
+        ]
+        .into_iter()
+        .filter_map(|(label, value)| {
+            value
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(|value| (label, value))
+        })
+        .collect::<Vec<_>>();
+
+        if rows.is_empty() {
+            return;
+        }
+
+        self.ensure_space(10.0 + rows.len() as f64 * 5.0);
+        self.write_heading("Delta Report", 3);
+
+        for (label, value) in rows {
+            self.ensure_space(5.0);
+            self.pdf.set_font("Helvetica", "B", Unit::pt(8.0));
+            self.pdf.set_text_color(RGB::new(0, 0, 0));
+            self.pdf.set_fill_color(RGB::new(245, 245, 245));
+            self.pdf.cell_format(
+                Unit::mm(45.0),
+                Unit::mm(5.0),
+                label,
+                "1",
+                0,
+                "L",
+                true,
+                0,
+                "",
+            );
+            self.pdf.set_font("Helvetica", "", Unit::pt(8.0));
+            self.pdf.cell_format(
+                Unit::mm(CONTENT_WIDTH_MM - 45.0),
+                Unit::mm(5.0),
+                &clean_text(value),
+                "1",
+                1,
+                "L",
+                false,
+                0,
+                "",
+            );
+        }
+
+        self.pdf.set_text_color(RGB::new(0, 0, 0));
+        self.pdf.set_fill_color(RGB::new(255, 255, 255));
+    }
+
+    fn has_delta_report_metadata(&self) -> bool {
+        let Some(baseline) = self
+            .report
+            .report
+            .delta
+            .as_ref()
+            .and_then(|delta| delta.report.as_ref())
+        else {
+            return false;
+        };
+
+        [
+            baseline.id.as_deref(),
+            baseline.scan_run_status.as_deref(),
+            baseline.timestamp.as_deref(),
+            baseline.scan_start.as_deref(),
+            baseline.scan_end.as_deref(),
+        ]
+        .into_iter()
+        .any(|value| value.is_some_and(|value| !value.trim().is_empty()))
+            && self.report.report.is_delta_report()
+    }
+}
 
 fn test_report() -> ReportEnvelope {
     parse_report_xml_flexible(

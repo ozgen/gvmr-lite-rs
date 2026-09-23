@@ -8,7 +8,8 @@ use crate::{
 
 use super::{
     ComplianceDisplayStatus, compliance_display_status, compliance_percentage,
-    compliance_sort_rank, delta_state_counts, filtered_or_full, sort_compliance_results,
+    compliance_result_delta_marker, compliance_result_nvt_name, compliance_sort_rank,
+    delta_state_counts, filtered_or_full, sort_compliance_results,
 };
 
 fn parse_report(xml: &str) -> ReportEnvelope {
@@ -925,6 +926,66 @@ fn delta_audit_results_report(delta: &str) -> ReportEnvelope {
         </report>
         "#
     ))
+}
+
+#[test]
+fn delta_compliance_table_helpers_use_marker_column_and_plain_nvt_name() {
+    let report = delta_audit_results_report("<delta>changed</delta>");
+    let result = report
+        .report
+        .results
+        .as_ref()
+        .expect("delta report should include results")
+        .result
+        .first()
+        .expect("delta report should have one result");
+
+    assert_eq!(compliance_result_delta_marker(result, true), "~");
+    assert_eq!(
+        compliance_result_nvt_name(result),
+        "Linux: SSH PermitRootLogin"
+    );
+    assert!(!compliance_result_nvt_name(result).starts_with('~'));
+}
+
+#[test]
+fn delta_compliance_table_helpers_render_all_marker_states_and_blank_for_unknown() {
+    let states = [
+        (DeltaState::Same, "same", "="),
+        (DeltaState::Changed, "changed", "~"),
+        (DeltaState::New, "new", "+"),
+        (DeltaState::Gone, "gone", "-"),
+    ];
+
+    for (state, xml_state, marker) in states {
+        let report = delta_audit_results_report(&format!("<delta>{xml_state}</delta>"));
+        let result = report
+            .report
+            .results
+            .as_ref()
+            .expect("delta report should include results")
+            .result
+            .first()
+            .expect("delta report should have one result");
+
+        assert_eq!(compliance_result_delta_marker(result, true), marker);
+        assert_eq!(
+            result.delta.as_ref().and_then(|delta| delta.state()),
+            Some(state)
+        );
+    }
+
+    let report = delta_audit_results_report("<delta>unknown</delta>");
+    let result = report
+        .report
+        .results
+        .as_ref()
+        .expect("delta report should include results")
+        .result
+        .first()
+        .expect("delta report should have one result");
+
+    assert_eq!(compliance_result_delta_marker(result, true), "");
 }
 
 #[test]

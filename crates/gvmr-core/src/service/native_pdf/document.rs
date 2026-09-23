@@ -123,7 +123,6 @@ impl<'a> NativePdfDocument<'a> {
     pub(crate) fn render_compliance_report(&mut self) {
         self.compliance_mode = true;
         self.write_cover();
-        self.write_delta_report_metadata_after_contents();
         self.write_compliance_overview();
         self.write_compliance_results_per_host();
     }

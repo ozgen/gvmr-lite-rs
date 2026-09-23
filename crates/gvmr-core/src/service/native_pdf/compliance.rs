@@ -582,26 +582,27 @@ impl<'a> NativePdfDocument<'a> {
     }
 
     fn write_compliance_result_table(&mut self, target: &str, results: &[ReportResult]) {
-        let widths = [45.0, 95.0, CONTENT_WIDTH_MM - 140.0];
+        let is_delta_report = self.report.report.is_delta_report();
+        let widths: Vec<f64> = if is_delta_report {
+            vec![42.0, 12.0, 92.0, 34.0]
+        } else {
+            vec![45.0, 95.0, CONTENT_WIDTH_MM - 140.0]
+        };
         let mut current_page = self.pdf.page_no();
 
-        self.write_compliance_result_header(&widths);
+        let headers = if is_delta_report {
+            vec!["Service (Port)", "Delta", "NVT", "Compliance"]
+        } else {
+            vec!["Service (Port)", "NVT", "Compliance"]
+        };
+
+        self.write_compliance_result_header(&widths, &headers);
 
         for (result_index, result) in results.iter().enumerate() {
             let service = clean_text(result_port(result));
-            let nvt = result
-                .name
-                .as_deref()
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .map(clean_text)
-                .unwrap_or_else(|| "-".to_string());
-            let nvt = if let Some(state) = result.delta.as_ref().and_then(|delta| delta.state()) {
-                format!("{} {}", delta_marker(state), nvt)
-            } else {
-                nvt
-            };
-            let nvt = wrap_nvt_name(&nvt, 48);
+            let nvt = compliance_result_nvt_name(result);
+            let delta = compliance_result_delta_marker(result, is_delta_report);
+            let nvt = wrap_nvt_name(&nvt, if is_delta_report { 35 } else { 48 });
             let compliance = compliance_display(result);
             let row_height = (nvt.lines().count().max(1) as f64 * 4.5).max(6.0);
             let link = self
@@ -616,17 +617,17 @@ impl<'a> NativePdfDocument<'a> {
             self.ensure_space(row_height);
             if self.pdf.page_no() != current_page {
                 current_page = self.pdf.page_no();
-                self.write_compliance_result_header(&widths);
+                self.write_compliance_result_header(&widths, &headers);
             }
 
             let (start_x, start_y) = self.pdf.get_xy();
             let cell_text_y = start_y + Unit::mm(1.0);
 
             let mut cell_x = start_x;
-            for width in widths {
+            for width in &widths {
                 self.pdf
-                    .rect(cell_x, start_y, Unit::mm(width), Unit::mm(row_height), "D");
-                cell_x += Unit::mm(width);
+                    .rect(cell_x, start_y, Unit::mm(*width), Unit::mm(row_height), "D");
+                cell_x += Unit::mm(*width);
             }
 
             self.pdf.set_xy(start_x + Unit::mm(2.0), cell_text_y);
@@ -643,32 +644,77 @@ impl<'a> NativePdfDocument<'a> {
                 "",
             );
 
-            self.pdf
-                .set_xy(start_x + Unit::mm(widths[0] + 2.0), cell_text_y);
-            self.pdf.multi_cell(
-                Unit::mm(widths[1] - 4.0),
-                Unit::mm(4.5),
-                &nvt,
-                "",
-                "L",
-                false,
-            );
+            if is_delta_report {
+                self.pdf
+                    .set_xy(start_x + Unit::mm(widths[0] + 2.0), cell_text_y);
+                self.pdf.cell_format(
+                    Unit::mm(widths[1] - 4.0),
+                    Unit::mm(row_height),
+                    &delta,
+                    "",
+                    0,
+                    "C",
+                    false,
+                    link,
+                    "",
+                );
 
-            self.pdf
-                .set_xy(start_x + Unit::mm(widths[0] + widths[1] + 2.0), cell_text_y);
-            let (compliance_fill, _) = compliance_colors(result);
-            self.pdf.set_fill_color(compliance_fill);
-            self.pdf.cell_format(
-                Unit::mm(widths[2] - 4.0),
-                Unit::mm(4.5),
-                &compliance,
-                "",
-                0,
-                "L",
-                true,
-                link,
-                "",
-            );
+                self.pdf
+                    .set_xy(start_x + Unit::mm(widths[0] + widths[1] + 2.0), cell_text_y);
+                self.pdf.multi_cell(
+                    Unit::mm(widths[2] - 4.0),
+                    Unit::mm(4.5),
+                    &nvt,
+                    "",
+                    "L",
+                    false,
+                );
+
+                self.pdf.set_xy(
+                    start_x + Unit::mm(widths[0] + widths[1] + widths[2] + 2.0),
+                    cell_text_y,
+                );
+                let (compliance_fill, _) = compliance_colors(result);
+                self.pdf.set_fill_color(compliance_fill);
+                self.pdf.cell_format(
+                    Unit::mm(widths[3] - 4.0),
+                    Unit::mm(4.5),
+                    &compliance,
+                    "",
+                    0,
+                    "L",
+                    true,
+                    link,
+                    "",
+                );
+            } else {
+                self.pdf
+                    .set_xy(start_x + Unit::mm(widths[0] + 2.0), cell_text_y);
+                self.pdf.multi_cell(
+                    Unit::mm(widths[1] - 4.0),
+                    Unit::mm(4.5),
+                    &nvt,
+                    "",
+                    "L",
+                    false,
+                );
+
+                self.pdf
+                    .set_xy(start_x + Unit::mm(widths[0] + widths[1] + 2.0), cell_text_y);
+                let (compliance_fill, _) = compliance_colors(result);
+                self.pdf.set_fill_color(compliance_fill);
+                self.pdf.cell_format(
+                    Unit::mm(widths[2] - 4.0),
+                    Unit::mm(4.5),
+                    &compliance,
+                    "",
+                    0,
+                    "L",
+                    true,
+                    link,
+                    "",
+                );
+            }
             self.pdf.set_fill_color(RGB::new(255, 255, 255));
 
             self.pdf.set_xy(start_x, start_y + Unit::mm(row_height));
@@ -677,19 +723,19 @@ impl<'a> NativePdfDocument<'a> {
         self.pdf.set_text_color(RGB::new(0, 0, 0));
     }
 
-    fn write_compliance_result_header(&mut self, widths: &[f64; 3]) {
+    fn write_compliance_result_header(&mut self, widths: &[f64], headers: &[&str]) {
         self.ensure_space(7.0);
         self.pdf.set_font("Helvetica", "B", Unit::pt(8.0));
         self.pdf.set_fill_color(RGB::new(220, 230, 240));
         self.pdf.set_text_color(RGB::new(0, 0, 0));
 
-        for (index, header) in ["Service (Port)", "NVT", "Compliance"].iter().enumerate() {
+        for (index, header) in headers.iter().enumerate() {
             self.pdf.cell_format(
                 Unit::mm(widths[index]),
                 Unit::mm(7.0),
                 header,
                 "1",
-                if index == 2 { 1 } else { 0 },
+                if index == headers.len() - 1 { 1 } else { 0 },
                 "L",
                 true,
                 0,
@@ -1129,6 +1175,30 @@ fn non_empty(value: Option<&str>) -> Option<&str> {
 fn non_empty_text(value: &str) -> Option<&str> {
     let value = value.trim();
     (!value.is_empty()).then_some(value)
+}
+
+fn compliance_result_nvt_name(result: &ReportResult) -> String {
+    result
+        .name
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(clean_text)
+        .unwrap_or_else(|| "-".to_string())
+}
+
+fn compliance_result_delta_marker(result: &ReportResult, is_delta_report: bool) -> String {
+    if !is_delta_report {
+        return String::new();
+    }
+
+    result
+        .delta
+        .as_ref()
+        .and_then(|delta| delta.state())
+        .map(delta_marker)
+        .unwrap_or_default()
+        .to_string()
 }
 
 fn wrap_nvt_name(value: &str, max_chars: usize) -> String {

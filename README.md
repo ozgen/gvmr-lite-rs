@@ -1,12 +1,13 @@
 # gvmr-lite-rs
 
-A lightweight Rust REST service for parsing, caching, and rendering GVM report formats.
+A lightweight Rust REST service for discovering, caching, and rendering GVM report formats.
 
-This project is a Rust rewrite of `gvmr-lite`, focusing on:
+The project focuses on:
 
-- preserving external API behavior
-- improving modularity and maintainability
-- preparing for better performance and rendering backends
+- Moving report rendering out of the main application into a dedicated HTTP service.
+- Rendering reports from structured report data or XML payloads.
+- Discovering and caching report formats.
+- Producing requested report output through a clean, pluggable rendering architecture.
 
 ---
 

@@ -36,9 +36,11 @@ fn initialize_with_force_parses_xml_and_caches_format() {
     assert!(cache.get(BUILT_IN_NATIVE_PDF_TECHNICAL_ID).is_some());
     assert!(cache.get_audit(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID).is_some());
     assert!(cache.get_delta(BUILT_IN_NATIVE_PDF_TECHNICAL_ID).is_some());
-    assert!(cache
-        .get_delta_audit(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID)
-        .is_some());
+    assert!(
+        cache
+            .get_delta_audit(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID)
+            .is_some()
+    );
 
     assert!(work_dir.join("fmt-1").exists());
     assert!(work_dir.join(BUILT_IN_TYPST_TECHNICAL_ID).exists());
@@ -1059,7 +1061,8 @@ fn non_allow_listed_and_wrong_category_formats_do_not_enter_delta_views() {
         )
         .unwrap();
 
-        let mut wrong_cache = FormatCache::new(wrong_feed.clone(), wrong_work.clone(), false, false);
+        let mut wrong_cache =
+            FormatCache::new(wrong_feed.clone(), wrong_work.clone(), false, false);
         wrong_cache.initialize_with_force(false).unwrap();
         assert!(!wrong_cache.contains_delta(id));
         assert!(!wrong_cache.contains_delta_audit(id));

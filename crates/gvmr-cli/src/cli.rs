@@ -7,6 +7,7 @@ use crate::error::CliError;
 #[derive(Debug, Parser)]
 #[command(name = "gvmr-cli")]
 #[command(about = "Render GVM reports from the command line")]
+#[command(version)]
 pub struct Cli {
     /// XML report file to render. Supports full report envelope XML or inner report XML.
     #[arg(long)]
@@ -24,7 +25,6 @@ pub struct Cli {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum CliRendererType {
     Native,
-    NativeCompliance,
     Typst,
 }
 
@@ -38,7 +38,7 @@ impl Cli {
 
         if self.renderer_type.is_none() {
             return Err(CliError::Validation(
-                "missing --type <native|native-compliance|typst>".to_string(),
+                "missing --type <native|typst>".to_string(),
             ));
         }
 

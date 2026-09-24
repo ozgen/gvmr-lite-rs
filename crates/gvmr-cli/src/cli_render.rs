@@ -28,9 +28,12 @@ pub fn render_xml_file(
     })?;
 
     let pdf = match renderer_type {
-        CliRendererType::Native => render_native_pdf(BUILT_IN_NATIVE_PDF_TECHNICAL_ID, &report)?,
-        CliRendererType::NativeCompliance => {
-            render_native_pdf(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID, &report)?
+        CliRendererType::Native => {
+            if report.report.is_audit_report() {
+                render_native_pdf(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID, &report)?
+            } else {
+                render_native_pdf(BUILT_IN_NATIVE_PDF_TECHNICAL_ID, &report)?
+            }
         }
 
         CliRendererType::Typst => {

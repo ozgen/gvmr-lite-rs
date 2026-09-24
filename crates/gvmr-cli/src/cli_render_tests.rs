@@ -138,7 +138,7 @@ fn render_xml_file_native_compliance_writes_pdf_output() {
 
     write_xml(&xml_path, compliance_report_xml());
 
-    render_xml_file(CliRendererType::NativeCompliance, &xml_path, &output_path)
+    render_xml_file(CliRendererType::Native, &xml_path, &output_path)
         .expect("native compliance PDF render should succeed");
 
     let bytes = fs::read(&output_path).expect("compliance PDF should be readable");

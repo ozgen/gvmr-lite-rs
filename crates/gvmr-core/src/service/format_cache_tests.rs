@@ -35,6 +35,10 @@ fn initialize_with_force_parses_xml_and_caches_format() {
     assert!(cache.get(BUILT_IN_TYPST_TECHNICAL_ID).is_some());
     assert!(cache.get(BUILT_IN_NATIVE_PDF_TECHNICAL_ID).is_some());
     assert!(cache.get_audit(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID).is_some());
+    assert!(cache.get_delta(BUILT_IN_NATIVE_PDF_TECHNICAL_ID).is_some());
+    assert!(cache
+        .get_delta_audit(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID)
+        .is_some());
 
     assert!(work_dir.join("fmt-1").exists());
     assert!(work_dir.join(BUILT_IN_TYPST_TECHNICAL_ID).exists());
@@ -932,10 +936,194 @@ fn new_for_test_with_audit_formats_initializes_both_maps() {
     let _ = fs::remove_dir_all(work_dir);
 }
 
+#[test]
+fn allow_listed_feed_formats_are_registered_in_their_delta_views() {
+    let feed_dir = temp_test_dir("delta-allow-list-feed");
+    let work_dir = temp_test_dir("delta-allow-list-work");
+
+    fs::write(
+        feed_dir.join("technical.xml"),
+        format!(
+            r#"<report_format id="{BUILT_IN_NATIVE_PDF_TECHNICAL_ID}">
+                <name>Technical Delta</name><extension>pdf</extension>
+                <content_type>application/pdf</content_type><report_type>scan</report_type>
+                <file name="generate">aGVsbG8=</file>
+            </report_format>"#
+        ),
+    )
+    .unwrap();
+    fs::write(
+        feed_dir.join("audit.xml"),
+        format!(
+            r#"<report_format id="{BUILT_IN_NATIVE_PDF_COMPLIANCE_ID}">
+                <name>Audit Delta</name><extension>pdf</extension>
+                <content_type>application/pdf</content_type><report_type>audit</report_type>
+                <file name="generate">aGVsbG8=</file>
+            </report_format>"#
+        ),
+    )
+    .unwrap();
+
+    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, false);
+    cache.initialize_with_force(false).unwrap();
+
+    assert!(cache.contains(BUILT_IN_NATIVE_PDF_TECHNICAL_ID));
+    assert!(cache.contains_delta(BUILT_IN_NATIVE_PDF_TECHNICAL_ID));
+    assert!(!cache.contains_audit(BUILT_IN_NATIVE_PDF_TECHNICAL_ID));
+    assert!(!cache.contains_delta_audit(BUILT_IN_NATIVE_PDF_TECHNICAL_ID));
+
+    assert!(cache.contains_audit(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID));
+    assert!(cache.contains_delta_audit(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID));
+    assert!(!cache.contains(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID));
+    assert!(!cache.contains_delta(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID));
+
+    let _ = fs::remove_dir_all(feed_dir);
+    let _ = fs::remove_dir_all(work_dir);
+}
+
+#[test]
+fn all_report_type_is_registered_in_both_delta_views() {
+    let feed_dir = temp_test_dir("delta-all-feed");
+    let work_dir = temp_test_dir("delta-all-work");
+    let format_id = "all-report-format";
+
+    fs::write(
+        feed_dir.join("format.xml"),
+        format!(
+            r#"<report_format id="{format_id}">
+                <name>All Report Format</name><extension>pdf</extension>
+                <content_type>application/pdf</content_type><report_type>all</report_type>
+                <file name="generate">aGVsbG8=</file>
+            </report_format>"#
+        ),
+    )
+    .unwrap();
+
+    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, false);
+    cache.initialize_with_force(false).unwrap();
+
+    assert!(cache.contains(format_id));
+    assert!(cache.contains_audit(format_id));
+    assert!(cache.contains_delta(format_id));
+    assert!(cache.contains_delta_audit(format_id));
+
+    let _ = fs::remove_dir_all(feed_dir);
+    let _ = fs::remove_dir_all(work_dir);
+}
+
+#[test]
+fn non_allow_listed_and_wrong_category_formats_do_not_enter_delta_views() {
+    let feed_dir = temp_test_dir("delta-isolation-feed");
+    let work_dir = temp_test_dir("delta-isolation-work");
+    let technical_id = "ordinary-technical";
+    let audit_id = "ordinary-audit";
+
+    for (file, id, report_type) in [
+        ("technical.xml", technical_id, "scan"),
+        ("audit.xml", audit_id, "audit"),
+    ] {
+        fs::write(
+            feed_dir.join(file),
+            format!(
+                r#"<report_format id="{id}"><name>Format</name><extension>txt</extension>
+                <content_type>text/plain</content_type><report_type>{report_type}</report_type>
+                <file name="generate">aGVsbG8=</file></report_format>"#
+            ),
+        )
+        .unwrap();
+    }
+
+    let mut cache = FormatCache::new(feed_dir.clone(), work_dir.clone(), false, false);
+    cache.initialize_with_force(false).unwrap();
+
+    assert!(!cache.contains_delta(technical_id));
+    assert!(!cache.contains_delta_audit(audit_id));
+
+    for (index, (id, report_type)) in [
+        (BUILT_IN_NATIVE_PDF_TECHNICAL_ID, "audit"),
+        (BUILT_IN_NATIVE_PDF_COMPLIANCE_ID, "scan"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let wrong_feed = temp_test_dir(&format!("delta-wrong-category-feed-{index}"));
+        let wrong_work = temp_test_dir(&format!("delta-wrong-category-work-{index}"));
+        fs::write(
+            wrong_feed.join("format.xml"),
+            format!(
+                r#"<report_format id="{id}"><name>Wrong Category</name>
+                <extension>txt</extension><content_type>text/plain</content_type>
+                <report_type>{report_type}</report_type>
+                <file name="generate">aGVsbG8=</file></report_format>"#
+            ),
+        )
+        .unwrap();
+
+        let mut wrong_cache = FormatCache::new(wrong_feed.clone(), wrong_work.clone(), false, false);
+        wrong_cache.initialize_with_force(false).unwrap();
+        assert!(!wrong_cache.contains_delta(id));
+        assert!(!wrong_cache.contains_delta_audit(id));
+
+        let _ = fs::remove_dir_all(wrong_feed);
+        let _ = fs::remove_dir_all(wrong_work);
+    }
+
+    let _ = fs::remove_dir_all(feed_dir);
+    let _ = fs::remove_dir_all(work_dir);
+}
+
+#[test]
+fn forced_rebuild_clears_stale_delta_formats_when_feed_is_empty() {
+    let feed_dir = temp_test_dir("delta-force-empty-feed");
+    let work_dir = temp_test_dir("delta-force-empty-work");
+    let delta_workdir = work_dir.join("old-delta-format");
+    let delta_audit_workdir = work_dir.join("old-delta-audit-format");
+    fs::create_dir_all(&delta_workdir).unwrap();
+    fs::create_dir_all(&delta_audit_workdir).unwrap();
+
+    let mut delta_formats = HashMap::new();
+    delta_formats.insert(
+        "old-delta-format".to_string(),
+        test_report_format(delta_workdir.clone()),
+    );
+    let mut delta_audit_formats = HashMap::new();
+    delta_audit_formats.insert(
+        "old-delta-audit-format".to_string(),
+        test_report_format(delta_audit_workdir.clone()),
+    );
+
+    let mut cache = FormatCache::new_for_test_with_all_formats(
+        feed_dir.clone(),
+        work_dir.clone(),
+        false,
+        HashMap::new(),
+        HashMap::new(),
+        delta_formats,
+        delta_audit_formats,
+    );
+
+    assert!(cache.contains_delta("old-delta-format"));
+    assert!(cache.contains_delta_audit("old-delta-audit-format"));
+    cache.rebuild().unwrap();
+
+    assert!(!cache.contains_delta("old-delta-format"));
+    assert!(!cache.contains_delta_audit("old-delta-audit-format"));
+    assert!(!delta_workdir.exists());
+    assert!(!delta_audit_workdir.exists());
+
+    let _ = fs::remove_dir_all(feed_dir);
+    let _ = fs::remove_dir_all(work_dir);
+}
+
 fn assert_built_in_formats_registered(cache: &FormatCache, work_dir: &Path) {
     assert!(cache.get(BUILT_IN_TYPST_TECHNICAL_ID).is_some());
     assert!(cache.get(BUILT_IN_NATIVE_PDF_TECHNICAL_ID).is_some());
     assert!(cache.get_audit(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID).is_some());
+    assert!(cache.contains_delta(BUILT_IN_NATIVE_PDF_TECHNICAL_ID));
+    assert!(cache.contains_delta_audit(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID));
+    assert!(!cache.contains_delta_audit(BUILT_IN_NATIVE_PDF_TECHNICAL_ID));
+    assert!(!cache.contains_delta(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID));
+    assert!(!cache.contains_delta(BUILT_IN_TYPST_TECHNICAL_ID));
 
     assert!(work_dir.join(BUILT_IN_TYPST_TECHNICAL_ID).exists());
     assert!(work_dir.join(BUILT_IN_NATIVE_PDF_TECHNICAL_ID).exists());

@@ -9,7 +9,10 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::api::render_audit;
 use crate::{
-    api::{audit_report_formats, debug, health, render, report_format},
+    api::{
+        audit_report_formats, debug, delta_audit_report_formats, delta_report_formats, health,
+        render, report_format,
+    },
     app::state::AppState,
     auth::middleware::require_auth,
     openapi::ApiDoc,
@@ -48,6 +51,30 @@ pub fn build_router(state: AppState) -> Router {
         .route(
             "/api/v1/audit-report-formats/sync",
             post(audit_report_formats::sync_audit_report_formats),
+        )
+        .route(
+            "/api/v1/delta-report-formats",
+            get(delta_report_formats::get_delta_report_formats),
+        )
+        .route(
+            "/api/v1/delta-report-formats/{format_id}",
+            get(delta_report_formats::get_delta_report_format),
+        )
+        .route(
+            "/api/v1/delta-report-formats/sync",
+            post(delta_report_formats::sync_delta_report_formats),
+        )
+        .route(
+            "/api/v1/delta-audit-report-formats",
+            get(delta_audit_report_formats::get_delta_audit_report_formats),
+        )
+        .route(
+            "/api/v1/delta-audit-report-formats/{format_id}",
+            get(delta_audit_report_formats::get_delta_audit_report_format),
+        )
+        .route(
+            "/api/v1/delta-audit-report-formats/sync",
+            post(delta_audit_report_formats::sync_delta_audit_report_formats),
         )
         .route("/api/v1/render/audit", post(render_audit::render_audit))
         .route(

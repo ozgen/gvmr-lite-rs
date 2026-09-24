@@ -1274,3 +1274,83 @@ fn auth_rows_skips_unknown_auth_detail_names_for_host_reports() {
 fn auth_rows_skips_empty_auth_values_for_host_reports() {
     assert!(auth_rows_for_host_detail("Auth-SSH-Success", "   ").is_empty());
 }
+
+#[test]
+fn report_detects_audit_report_from_compliance_count() {
+    let xml = r#"
+        <report id="outer-report-id">
+            <report id="inner-report-id">
+                <compliance_count>
+                    <full>10</full>
+                    <filtered>8</filtered>
+                </compliance_count>
+            </report>
+        </report>
+    "#;
+
+    let envelope: ReportEnvelope =
+        quick_xml::de::from_str(xml).expect("report envelope should deserialize");
+
+    assert!(envelope.report.is_audit_report());
+}
+
+#[test]
+fn report_detects_audit_report_from_compliance_summary() {
+    let xml = r#"
+        <report id="outer-report-id">
+            <report id="inner-report-id">
+                <compliance>
+                    <full>10</full>
+                    <filtered>8</filtered>
+                </compliance>
+            </report>
+        </report>
+    "#;
+
+    let envelope: ReportEnvelope =
+        quick_xml::de::from_str(xml).expect("report envelope should deserialize");
+
+    assert!(envelope.report.is_audit_report());
+}
+
+#[test]
+fn report_detects_audit_report_from_result_compliance() {
+    let xml = r#"
+        <report id="outer-report-id">
+            <report id="inner-report-id">
+                <results>
+                    <result id="result-1">
+                        <name>Audit check</name>
+                        <compliance>yes</compliance>
+                    </result>
+                </results>
+            </report>
+        </report>
+    "#;
+
+    let envelope: ReportEnvelope =
+        quick_xml::de::from_str(xml).expect("report envelope should deserialize");
+
+    assert!(envelope.report.is_audit_report());
+}
+
+#[test]
+fn report_is_not_audit_report_without_compliance_data() {
+    let xml = r#"
+        <report id="outer-report-id">
+            <report id="inner-report-id">
+                <results>
+                    <result id="result-1">
+                        <name>Regular vulnerability</name>
+                        <severity>7.5</severity>
+                    </result>
+                </results>
+            </report>
+        </report>
+    "#;
+
+    let envelope: ReportEnvelope =
+        quick_xml::de::from_str(xml).expect("report envelope should deserialize");
+
+    assert!(!envelope.report.is_audit_report());
+}

@@ -77,15 +77,9 @@ fn parse_cli_accepts_short_output_flag() {
 
 #[test]
 fn parse_cli_accepts_native_compliance_renderer_type() {
-    let cli = Cli::parse_from([
-        "gvmr-cli",
-        "--xml",
-        "audit.xml",
-        "--type",
-        "native-compliance",
-    ]);
+    let cli = Cli::parse_from(["gvmr-cli", "--xml", "audit.xml", "--type", "native"]);
 
-    assert_eq!(cli.renderer_type, Some(CliRendererType::NativeCompliance));
+    assert_eq!(cli.renderer_type, Some(CliRendererType::Native));
 }
 
 #[test]
@@ -146,10 +140,7 @@ fn validate_returns_error_when_renderer_type_is_missing() {
         .expect_err("missing renderer type should fail");
 
     assert!(matches!(error, CliError::Validation(_)));
-    assert_eq!(
-        error.to_string(),
-        "missing --type <native|native-compliance|typst>"
-    );
+    assert_eq!(error.to_string(), "missing --type <native|typst>");
 }
 
 #[test]
@@ -228,10 +219,7 @@ async fn run_returns_validation_error_when_renderer_type_is_missing() {
         .expect_err("missing renderer type should fail before rendering");
 
     assert!(matches!(error, CliError::Validation(_)));
-    assert_eq!(
-        error.to_string(),
-        "missing --type <native|native-compliance|typst>"
-    );
+    assert_eq!(error.to_string(), "missing --type <native|typst>");
 }
 
 #[tokio::test]

@@ -8,6 +8,7 @@ use crate::{
 #[utoipa::path(
     get,
     path = "/health/live",
+    tag = "health",
     responses(
         (status = 200, description = "Liveness probe", body = LiveResponse)
     )
@@ -19,6 +20,7 @@ pub async fn live() -> Json<LiveResponse> {
 #[utoipa::path(
     get,
     path = "/health/ready",
+    tag = "health",
     responses(
         (status = 200, description = "Readiness probe", body = ReadyResponse)
     )

@@ -11,6 +11,12 @@ use utoipa::OpenApi;
         crate::api::audit_report_formats::sync_audit_report_formats,
         crate::api::audit_report_formats::get_audit_report_formats,
         crate::api::audit_report_formats::get_audit_report_format,
+        crate::api::delta_report_formats::sync_delta_report_formats,
+        crate::api::delta_report_formats::get_delta_report_formats,
+        crate::api::delta_report_formats::get_delta_report_format,
+        crate::api::delta_audit_report_formats::sync_delta_audit_report_formats,
+        crate::api::delta_audit_report_formats::get_delta_audit_report_formats,
+        crate::api::delta_audit_report_formats::get_delta_audit_report_format,
         crate::api::render::render,
         crate::api::render::render_xml,
         crate::api::render_audit::render_audit,
@@ -36,6 +42,8 @@ use utoipa::OpenApi;
         (name = "health", description = "Health endpoints"),
         (name = "report-formats", description = "Report format cache endpoints"),
         (name = "audit-report-formats", description = "Audit report format cache endpoints"), 
+        (name = "delta-report-formats", description = "Delta report format cache endpoints"),
+        (name = "delta-audit-report-formats", description = "Delta audit report format cache endpoints"),
         (name = "render", description = "Report rendering endpoints"),
     )
 )]

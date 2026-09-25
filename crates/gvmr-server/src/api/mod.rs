@@ -1,5 +1,7 @@
 pub mod audit_report_formats;
 pub mod debug;
+pub mod delta_audit_report_formats;
+pub mod delta_report_formats;
 pub mod dto;
 pub mod error;
 pub mod health;

@@ -11,7 +11,8 @@ use crate::{
         report_format::{ReportFormat, ReportFormatFile},
         report_format_constants::{
             BUILT_IN_NATIVE_PDF_COMPLIANCE_ID, BUILT_IN_NATIVE_PDF_TECHNICAL_ID,
-            BUILT_IN_TYPST_TECHNICAL_ID, DISCARDED_REPORT_FORMAT_IDS,
+            BUILT_IN_TYPST_TECHNICAL_ID, DELTA_AUDIT_REPORT_FORMAT_IDS, DELTA_REPORT_FORMAT_IDS,
+            DISCARDED_REPORT_FORMAT_IDS,
         },
     },
     infra::fs::{
@@ -31,6 +32,8 @@ pub struct FormatCache {
     experimental: bool,
     formats: HashMap<String, ReportFormat>,
     audit_formats: HashMap<String, ReportFormat>,
+    delta_formats: HashMap<String, ReportFormat>,
+    delta_audit_formats: HashMap<String, ReportFormat>,
 }
 
 impl FormatCache {
@@ -47,6 +50,8 @@ impl FormatCache {
             experimental,
             formats: HashMap::new(),
             audit_formats: HashMap::new(),
+            delta_formats: HashMap::new(),
+            delta_audit_formats: HashMap::new(),
         }
     }
 
@@ -79,6 +84,8 @@ impl FormatCache {
         if force {
             self.formats.clear();
             self.audit_formats.clear();
+            self.delta_formats.clear();
+            self.delta_audit_formats.clear();
             delete_stale_dirs(&self.work_dir, &wanted_ids)?;
         }
 
@@ -96,6 +103,7 @@ impl FormatCache {
 
             let supports_audit = Self::supports_audit_report_format(&parsed.report_type);
             let supports_scan = Self::supports_scan_report_format(&parsed.report_type);
+            let supports_all = Self::supports_all_report_format(&parsed.report_type);
 
             let Some(format) = self.cache_format(parsed, force)? else {
                 continue;
@@ -118,7 +126,28 @@ impl FormatCache {
                     "registered audit report format"
                 );
 
-                self.audit_formats.insert(format.id.clone(), format);
+                self.audit_formats.insert(format.id.clone(), format.clone());
+            }
+
+            if supports_scan && (supports_all || Self::supports_delta_format_id(&format.id)) {
+                debug!(
+                    format_id = %format.id,
+                    name = %format.name,
+                    "registered delta report format"
+                );
+
+                self.delta_formats.insert(format.id.clone(), format.clone());
+            }
+
+            if supports_audit && (supports_all || Self::supports_delta_audit_format_id(&format.id))
+            {
+                debug!(
+                    format_id = %format.id,
+                    name = %format.name,
+                    "registered delta audit report format"
+                );
+
+                self.delta_audit_formats.insert(format.id.clone(), format);
             }
         }
 
@@ -151,6 +180,30 @@ impl FormatCache {
         self.audit_formats.contains_key(id)
     }
 
+    pub fn list_delta(&self) -> &HashMap<String, ReportFormat> {
+        &self.delta_formats
+    }
+
+    pub fn get_delta(&self, id: &str) -> Option<&ReportFormat> {
+        self.delta_formats.get(id)
+    }
+
+    pub fn contains_delta(&self, id: &str) -> bool {
+        self.delta_formats.contains_key(id)
+    }
+
+    pub fn list_delta_audit(&self) -> &HashMap<String, ReportFormat> {
+        &self.delta_audit_formats
+    }
+
+    pub fn get_delta_audit(&self, id: &str) -> Option<&ReportFormat> {
+        self.delta_audit_formats.get(id)
+    }
+
+    pub fn contains_delta_audit(&self, id: &str) -> bool {
+        self.delta_audit_formats.contains_key(id)
+    }
+
     fn supports_audit_report_format(report_type: &str) -> bool {
         let report_type = report_type.trim();
 
@@ -164,6 +217,18 @@ impl FormatCache {
             || report_type.eq_ignore_ascii_case("scan")
             || report_type.eq_ignore_ascii_case("report")
             || report_type.eq_ignore_ascii_case("all")
+    }
+
+    fn supports_all_report_format(report_type: &str) -> bool {
+        report_type.trim().eq_ignore_ascii_case("all")
+    }
+
+    fn supports_delta_format_id(format_id: &str) -> bool {
+        DELTA_REPORT_FORMAT_IDS.contains(&format_id)
+    }
+
+    fn supports_delta_audit_format_id(format_id: &str) -> bool {
+        DELTA_AUDIT_REPORT_FORMAT_IDS.contains(&format_id)
     }
 
     fn register_built_in_formats(&mut self) -> std::io::Result<()> {
@@ -196,6 +261,8 @@ impl FormatCache {
         );
 
         self.formats
+            .insert(native_pdf_format.id.clone(), native_pdf_format.clone());
+        self.delta_formats
             .insert(native_pdf_format.id.clone(), native_pdf_format);
 
         let native_compliance_workdir = self.work_dir.join(BUILT_IN_NATIVE_PDF_COMPLIANCE_ID);
@@ -210,6 +277,10 @@ impl FormatCache {
         );
 
         self.audit_formats.insert(
+            native_compliance_format.id.clone(),
+            native_compliance_format.clone(),
+        );
+        self.delta_audit_formats.insert(
             native_compliance_format.id.clone(),
             native_compliance_format,
         );
@@ -247,6 +318,8 @@ impl FormatCache {
         if force {
             self.formats.clear();
             self.audit_formats.clear();
+            self.delta_formats.clear();
+            self.delta_audit_formats.clear();
             delete_stale_dirs(&self.work_dir, &HashSet::new())?;
         }
 
@@ -401,6 +474,8 @@ impl FormatCache {
             experimental: false,
             formats,
             audit_formats: HashMap::new(),
+            delta_formats: HashMap::new(),
+            delta_audit_formats: HashMap::new(),
         }
     }
 
@@ -419,6 +494,51 @@ impl FormatCache {
             experimental: false,
             formats,
             audit_formats,
+            delta_formats: HashMap::new(),
+            delta_audit_formats: HashMap::new(),
+        }
+    }
+
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn new_for_test_with_report_types(
+        feed_dir: PathBuf,
+        work_dir: PathBuf,
+        rebuild_on_start: bool,
+        formats: HashMap<String, ReportFormat>,
+        audit_formats: HashMap<String, ReportFormat>,
+        delta_formats: HashMap<String, ReportFormat>,
+    ) -> Self {
+        Self {
+            feed_dir,
+            work_dir,
+            rebuild_on_start,
+            experimental: false,
+            formats,
+            audit_formats,
+            delta_formats,
+            delta_audit_formats: HashMap::new(),
+        }
+    }
+
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn new_for_test_with_all_formats(
+        feed_dir: PathBuf,
+        work_dir: PathBuf,
+        rebuild_on_start: bool,
+        formats: HashMap<String, ReportFormat>,
+        audit_formats: HashMap<String, ReportFormat>,
+        delta_formats: HashMap<String, ReportFormat>,
+        delta_audit_formats: HashMap<String, ReportFormat>,
+    ) -> Self {
+        Self {
+            feed_dir,
+            work_dir,
+            rebuild_on_start,
+            experimental: false,
+            formats,
+            audit_formats,
+            delta_formats,
+            delta_audit_formats,
         }
     }
 }

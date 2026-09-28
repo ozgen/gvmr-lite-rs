@@ -447,7 +447,7 @@ fn report_json_to_envelope_maps_timestamps_timezone_ports_and_severity() {
 }
 
 #[test]
-fn results_from_dto_filters_info_log_debug_false_positive_and_empty_threats() {
+fn results_from_dto_filters_info_debug_false_positive_and_empty_threats() {
     let report_json = report_json_from_value(json!({
         "filters": {
             "term": "",
@@ -472,10 +472,6 @@ fn results_from_dto_filters_info_log_debug_false_positive_and_empty_threats() {
                 {
                     "host": "host-a",
                     "threat": "Info"
-                },
-                {
-                    "host": "host-a",
-                    "threat": "Log"
                 },
                 {
                     "host": "host-a",
@@ -760,7 +756,33 @@ fn should_keep_result_filters_expected_threats() {
 
     assert!(should_keep_result(high_result));
 
-    for threat in ["", "   ", "Info", "Log", "Debug", "False Positive"] {
+    let log = report_json_from_value(json!({
+        "filters": {
+            "term": "",
+            "keywords": {
+                "keyword": []
+            }
+        },
+        "ports": {
+            "port": []
+        },
+        "results": {
+            "result": [
+                {
+                    "host": "host-a",
+                    "threat": "Log"
+                }
+            ]
+        },
+        "result_count": {
+            "filtered": 1
+        },
+        "host": []
+    }));
+
+    assert!(should_keep_result(&log.results.result[0]));
+
+    for threat in ["", "   ", "Info", "Debug", "False Positive"] {
         let value = report_json_from_value(json!({
             "filters": {
                 "term": "",
@@ -1582,7 +1604,7 @@ fn report_json_to_envelope_maps_oci_image_report_flow() {
 }
 
 #[test]
-fn results_from_dto_keeps_oci_image_result_and_filters_log_result() {
+fn results_from_dto_keeps_oci_image_results_including_log() {
     let report_json = report_json_from_value(json!({
         "filters": {
             "term": "",
@@ -1640,11 +1662,17 @@ fn results_from_dto_keeps_oci_image_result_and_filters_log_result() {
     let envelope = report_json_to_envelope(&report_json);
     let results = envelope.report.results.unwrap();
 
-    assert_eq!(results.result.len(), 1);
+    assert_eq!(results.result.len(), 2);
 
-    let result = &results.result[0];
+    let critical = &results.result[0];
+    assert_eq!(critical.name.as_deref(), Some("OCI critical result"));
+    assert_eq!(critical.threat.as_deref(), Some("Critical"));
+    assert_eq!(critical.severity.as_deref(), Some("10.0"));
+    assert!(critical.oci_image.is_some());
 
-    assert_eq!(result.name.as_deref(), Some("OCI critical result"));
-    assert_eq!(result.threat.as_deref(), Some("Critical"));
-    assert!(result.oci_image.is_some());
+    let log = &results.result[1];
+    assert_eq!(log.name.as_deref(), Some("OCI log result"));
+    assert_eq!(log.threat.as_deref(), Some("Log"));
+    assert_eq!(log.severity.as_deref(), Some("0.0"));
+    assert!(log.oci_image.is_some());
 }

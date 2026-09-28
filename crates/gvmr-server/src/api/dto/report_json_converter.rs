@@ -182,7 +182,6 @@ fn should_keep_result(result: &dto::ReportResult) -> bool {
     }
 
     if threat.eq_ignore_ascii_case("info")
-        || threat.eq_ignore_ascii_case("log")
         || threat.eq_ignore_ascii_case("debug")
         || threat.eq_ignore_ascii_case("false positive")
     {
